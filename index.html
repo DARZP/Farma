@@ -2370,12 +2370,12 @@
     async function generarReporteFaltantes(fechaInicio = null) { faltantesManualesList.innerHTML = '<p>Cargando...</p>'; faltantesInventarioList.innerHTML = '<p>Cargando...</p>'; let query = db.collection('solicitudes_faltantes'); if (fechaInicio) { query = query.where('fecha', '>=', fechaInicio); } const snapshot = await query.get(); const conteo = {}; snapshot.forEach(doc => { const data = doc.data(); const id = data.nombre.toLowerCase(); if (!conteo[id]) { conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 }; } conteo[id].cantidad++; }); const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); faltantesManualesList.innerHTML = ''; faltantesInventarioList.innerHTML = ''; sorted.forEach(item => { const div = document.createElement('div'); div.className = 'item'; div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; if (item.esDeInventario) { faltantesInventarioList.appendChild(div); } else { faltantesManualesList.appendChild(div); } }); if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>'; if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>'; }
     async function cargarYGenerarReporteFaltantes() { const snapshot = await db.collection('faltantes').where('esDeInventario', '==', false).get(); faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); generarReporteFaltantes(); }
     faltantesFiltros.addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') return; document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); const periodo = e.target.dataset.periodo; let fechaInicio = new Date(); if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7); else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1); else fechaInicio = null; generarReporteFaltantes(fechaInicio); });
-    });
     loadData();
 });
 </script>   
 </body>
 </html>
+
 
 
 
