@@ -141,20 +141,14 @@
 
         <div id="reportes-section" class="content-section" style="display: none;">
             <h2>Reporte de Productos Más Vendidos</h2>
-<div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; justify-content: space-between;">
-    
-    <div class="filtro-grupo" style="display: flex; gap: 0.5rem; border: 1px solid #ccc; padding: 5px; border-radius: 8px;">
-        <button data-periodo="semana">Esta Semana</button>
-        <button data-periodo="mes">Este Mes</button>
-        <button data-periodo="siempre" class="active">Desde Siempre</button>
-    </div>
-
-    <div class="filtro-grupo" style="display: flex; gap: 0.5rem; align-items: center;">
-        <span>Periodo específico:</span>
-        <input type="date" id="reporte-fecha-inicio">
-        <input type="date" id="reporte-fecha-fin">
-        <button id="btn-filtrar-periodo">Filtrar</button>
-    </div>
+<div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+    <button data-periodo="semana">Esta Semana</button>
+    <button data-periodo="mes">Este Mes</button>
+    <button data-periodo="siempre" class="active">Desde Siempre</button>
+    <span style="border-left: 1px solid #ccc; padding-left: 0.75rem;">Periodo específico:</span>
+    <input type="date" id="reporte-fecha-inicio">
+    <input type="date" id="reporte-fecha-fin">
+    <button id="btn-filtrar-periodo">Filtrar</button>
 </div>
 <div id="reportes-list"></div>
         </div>
@@ -2347,8 +2341,12 @@
         const faltanteRef = db.collection('faltantes').doc(docId);
         try {
             await db.runTransaction(async (transaction) => {
-                transaction.set(registroRef, { nombre, esDeInventario, fecha: new Date() });
+                // 1. PRIMERO HACEMOS LA LECTURA (READ)
                 const doc = await transaction.get(faltanteRef);
+
+                // 2. LUEGO HACEMOS TODAS LAS ESCRITURAS (WRITES)
+                transaction.set(registroRef, { nombre, esDeInventario, fecha: new Date() });
+                
                 if (!doc.exists) {
                     transaction.set(faltanteRef, { nombre, esDeInventario, contador: 1 });
                 } else {
@@ -2360,97 +2358,25 @@
             return true;
         } catch (error) {
             console.error("Error al registrar faltante: ", error);
-            alert("Error al guardar el registro.");
+            alert("Error al guardar el registro. Revisa la consola.");
             return false;
         }
     }
 
-    async function registrarFaltanteInventario(product) {
-        if (!confirm(`¿Confirmas que "${product.nombre}" está agotado?`)) return;
-        await registrarFaltante(product.codigo, product.nombre, true);
-    }
-    
-    btnRegistrarFaltanteManual.addEventListener('click', async () => {
-        const nombreManual = faltanteManualInput.value.trim();
-        if (nombreManual === '') return;
-        const docId = nombreManual.toLowerCase().replace(/\s+/g, '-');
-        if (await registrarFaltante(docId, nombreManual, false)) {
-            faltanteManualInput.value = '';
-            faltanteManualSugerencias.innerHTML = '';
-            cargarYGenerarReporteFaltantes();
-        }
-    });
-
-    tabManuales.addEventListener('click', () => {
-        tabManuales.classList.add('active');
-        tabInventario.classList.remove('active');
-        faltantesManualesList.style.display = 'block';
-        faltantesInventarioList.style.display = 'none';
-    });
-
-    tabInventario.addEventListener('click', () => {
-        tabInventario.classList.add('active');
-        tabManuales.classList.remove('active');
-        faltantesInventarioList.style.display = 'block';
-        faltantesManualesList.style.display = 'none';
-    });
-    
-    async function generarReporteFaltantes(fechaInicio = null) {
-        faltantesManualesList.innerHTML = '<p>Cargando...</p>';
-        faltantesInventarioList.innerHTML = '<p>Cargando...</p>';
-        let query = db.collection('solicitudes_faltantes');
-        if (fechaInicio) {
-            query = query.where('fecha', '>=', fechaInicio);
-        }
-        const snapshot = await query.get();
-        const conteo = {};
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const id = data.nombre.toLowerCase();
-            if (!conteo[id]) {
-                conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 };
-            }
-            conteo[id].cantidad++;
-        });
-        const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad);
-        faltantesManualesList.innerHTML = '';
-        faltantesInventarioList.innerHTML = '';
-        sorted.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`;
-            if (item.esDeInventario) {
-                faltantesInventarioList.appendChild(div);
-            } else {
-                faltantesManualesList.appendChild(div);
-            }
-        });
-        if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos.</p>';
-        if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos.</p>';
-    }
-    
-    async function cargarYGenerarReporteFaltantes() {
-        const snapshot = await db.collection('faltantes').where('esDeInventario', '==', false).get();
-        faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-        generarReporteFaltantes(); 
-    }
-
-    faltantesFiltros.addEventListener('click', e => {
-        if (e.target.tagName !== 'BUTTON') return;
-        document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active'));
-        e.target.classList.add('active');
-        const periodo = e.target.dataset.periodo;
-        let fechaInicio = new Date();
-        if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7);
-        else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-        else fechaInicio = null;
-        generarReporteFaltantes(fechaInicio);
+    async function registrarFaltanteInventario(product) { if (!confirm(`¿Confirmas que "${product.nombre}" está agotado?`)) return; await registrarFaltante(product.codigo, product.nombre, true); }
+    btnRegistrarFaltanteManual.addEventListener('click', async () => { const nombreManual = faltanteManualInput.value.trim(); if (nombreManual === '') return; const docId = nombreManual.toLowerCase().replace(/\s+/g, '-'); if (await registrarFaltante(docId, nombreManual, false)) { faltanteManualInput.value = ''; faltanteManualSugerencias.innerHTML = ''; cargarYGenerarReporteFaltantes(); } });
+    tabManuales.addEventListener('click', () => { tabManuales.classList.add('active'); tabInventario.classList.remove('active'); tabManuales.style.background = '#eee'; tabInventario.style.background = 'transparent'; faltantesManualesList.style.display = 'block'; faltantesInventarioList.style.display = 'none'; });
+    tabInventario.addEventListener('click', () => { tabInventario.classList.add('active'); tabManuales.classList.remove('active'); tabInventario.style.background = '#eee'; tabManuales.style.background = 'transparent'; faltantesInventarioList.style.display = 'block'; faltantesManualesList.style.display = 'none'; });
+    async function generarReporteFaltantes(fechaInicio = null) { faltantesManualesList.innerHTML = '<p>Cargando...</p>'; faltantesInventarioList.innerHTML = '<p>Cargando...</p>'; let query = db.collection('solicitudes_faltantes'); if (fechaInicio) { query = query.where('fecha', '>=', fechaInicio); } const snapshot = await query.get(); const conteo = {}; snapshot.forEach(doc => { const data = doc.data(); const id = data.nombre.toLowerCase(); if (!conteo[id]) { conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 }; } conteo[id].cantidad++; }); const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); faltantesManualesList.innerHTML = ''; faltantesInventarioList.innerHTML = ''; sorted.forEach(item => { const div = document.createElement('div'); div.className = 'item'; div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; if (item.esDeInventario) { faltantesInventarioList.appendChild(div); } else { faltantesManualesList.appendChild(div); } }); if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>'; if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>'; }
+    async function cargarYGenerarReporteFaltantes() { const snapshot = await db.collection('faltantes').where('esDeInventario', '==', false).get(); faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); generarReporteFaltantes(); }
+    faltantesFiltros.addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') return; document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); const periodo = e.target.dataset.periodo; let fechaInicio = new Date(); if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7); else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1); else fechaInicio = null; generarReporteFaltantes(fechaInicio); });
     });
     loadData();
 });
 </script>   
 </body>
 </html>
+
 
 
 
