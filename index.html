@@ -176,7 +176,7 @@
                          <button data-periodo="mes">Mes</button>   
                          <button data-periodo="siempre" class="active">Siempre</button>
                      </div>
-                     <div class="tabas" style="display: flex; border-bottom: 2px solid #ccc; margin-bottom: 1rem;">
+                     <div class="tabs" style="display: flex; border-bottom: 2px solid #ccc; margin-bottom: 1rem;">
                          <button id="tab-manuales" class="active" style="padding: 0.5rem 1rem; border: none; background: #eee;">Manuales</button>
                          <button id="tab-inventario" style="padding: 0.5rem 1rem; border: none; background: transparent;">Del Inventario</button>
                      </div>
@@ -200,33 +200,35 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
-    const menuClasificaciones = document.getElementById('menu-clasificaciones');
+        const menuClasificaciones = document.getElementById('menu-clasificaciones');
     const productList = document.getElementById('product-list');
     const globalSearch = document.getElementById('globalSearch');
     const currentClassificationTitle = document.getElementById('current-classification-title');
-
     const inventarioSection = document.getElementById('inventario-section');
     const ventaSection = document.getElementById('venta-section');
     const reportesSection = document.getElementById('reportes-section');
     const faltanteSection = document.getElementById('faltante-section');
-
     const btnInventario = document.getElementById('btn-inventario');
     const btnVenta = document.getElementById('btn-venta');
     const btnReportes = document.getElementById('btn-reportes');
     const btnFaltante = document.getElementById('btn-faltante');
-
     const ventaSearch = document.getElementById('ventaSearch');
     const ventaSearchResults = document.getElementById('venta-search-results');
     const ventaActualList = document.getElementById('venta-actual-list');
     const btnRegistrarVenta = document.getElementById('btn-registrar-venta');
-    
     const reportesList = document.getElementById('reportes-list');
-
+    const reportesFiltros = document.getElementById('reportes-filtros');
+    const btnFiltrarPeriodo = document.getElementById('btn-filtrar-periodo');
     const faltanteSearch = document.getElementById('faltanteSearch');
     const faltanteSearchResults = document.getElementById('faltante-search-results');
     const faltanteManualInput = document.getElementById('faltante-manual-input');
+    const faltanteManualSugerencias = document.getElementById('faltante-manual-sugerencias');
     const btnRegistrarFaltanteManual = document.getElementById('btn-registrar-faltante-manual');
     const faltantesManualesList = document.getElementById('faltantes-manuales-list');
+    const tabManuales = document.getElementById('tab-manuales');
+    const tabInventario = document.getElementById('tab-inventario');
+    const faltantesInventarioList = document.getElementById('faltantes-inventario-list');
+    const faltantesFiltros = document.getElementById('faltantes-filtros');
 
     let allProducts = [];
     let classifications = {};
@@ -239,8 +241,7 @@
     function showSection(sectionToShow, buttonToActivate) {
         sections.forEach(section => section.style.display = 'none');
         menuButtons.forEach(btn => btn.classList.remove('active'));
-
-        sectionToShow.style.display = 'flex'; // Usamos flex para mantener el layout
+        sectionToShow.style.display = 'flex';
         buttonToActivate.classList.add('active');
     }
 
@@ -259,11 +260,7 @@
         cargarFaltantesManuales();
     });
         
-    // --- Cargar y Procesar los datos INTERNOS (formato JSON) ---
     function loadData() {
-        // --- INICIO DE TU INVENTARIO COMPLETO ---
-        // Tu inventario completo ya está aquí. Para agregar nuevos productos,
-        // simplemente sigue el formato, agregando más items a la lista de "productos".
         const miInventario = [
             {
                 clasificacion: "Vitaminas y Suplementos",
@@ -2069,30 +2066,21 @@
 '7501035912439': [{ farmacia: 'Farmacias del Ahorro', precio: 199.00 }],    
 '7501046921319': [{ farmacia: 'Farmacias Guadalajara', precio: 304.50 }],   
  };
-        // --- FIN DE PRECIOS DE COMPETENCIA ---
-
-        // El resto del código procesa y muestra todo. No necesitas tocar nada de aquí para abajo.
         classifications['Todos'] = [];
         miInventario.forEach(grupo => {
             const nombreClasificacion = grupo.clasificacion;
             classifications[nombreClasificacion] = [];
-            
             grupo.productos.forEach(prod => {
-                const productData = {
-                    ...prod,
-                    competencia: competitorPrices[prod.codigo.trim()] || []
-                };
+                const productData = { ...prod, competencia: competitorPrices[prod.codigo.trim()] || [] };
                 classifications[nombreClasificacion].push(productData);
                 classifications['Todos'].push(productData);
             });
         });
-        
         allProducts = classifications['Todos'];
         renderMenu();
         renderProducts(allProducts);
     }
 
-    // --- Renderizar (dibujar) los elementos en la pantalla ---
     function renderMenu() {
         menuClasificaciones.innerHTML = '';
         const allLink = document.createElement('a');
@@ -2106,7 +2094,6 @@
             renderProducts(allProducts);
         };
         menuClasificaciones.appendChild(allLink);
-
         Object.keys(classifications).sort().forEach(key => {
             if (key !== 'Todos' && classifications[key].length > 0) {
                 const link = document.createElement('a');
@@ -2123,14 +2110,12 @@
         });
     }
 
-
     function renderProducts(products) {
         productList.innerHTML = '';
         if (products.length === 0) {
-            productList.innerHTML = '<p>No se encontraron productos para el término de búsqueda.</p>';
+            productList.innerHTML = '<p>No se encontraron productos.</p>';
             return;
         }
-
         products.forEach(product => {
             const card = document.createElement('div');
             card.className = 'product-card';
@@ -2171,7 +2156,6 @@
 
     globalSearch.addEventListener('input', (e) => filterProducts(e.target.value));
 
-    // --- LÓGICA DE LA SECCIÓN DE VENTA ---
     ventaSearch.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
         const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
@@ -2180,7 +2164,7 @@
 
     function renderVentaSearchResults(products) {
         ventaSearchResults.innerHTML = '';
-        products.slice(0, 50).forEach(product => { // Limitar a 50 resultados para no saturar
+        products.slice(0, 50).forEach(product => {
             const card = document.createElement('div');
             card.className = 'list-item-card';
             card.innerHTML = `<h3>${product.nombre}</h3><p>Código: ${product.codigo}</p>`;
@@ -2199,7 +2183,7 @@
         renderVentaActual();
     }
 
-        function renderVentaActual() {
+    function renderVentaActual() {
         ventaActualList.innerHTML = '';
         if (ventaActual.length === 0) {
             ventaActualList.innerHTML = '<p>Agrega productos para vender.</p>';
@@ -2208,10 +2192,7 @@
         ventaActual.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'item';
-            div.innerHTML = `
-                <span>${item.nombre}</span>
-                <input type="number" value="${item.cantidad}" min="1" data-index="${index}">
-            `;
+            div.innerHTML = `<span>${item.nombre}</span><input type="number" value="${item.cantidad}" min="1" data-index="${index}">`;
             ventaActualList.appendChild(div);
         });
     }
@@ -2223,7 +2204,7 @@
             if (nuevaCantidad > 0) {
                 ventaActual[index].cantidad = nuevaCantidad;
             } else {
-                ventaActual.splice(index, 1); // Eliminar si la cantidad es 0 o menos
+                ventaActual.splice(index, 1);
             }
             renderVentaActual();
         }
@@ -2235,10 +2216,9 @@
             return;
         }
         const fechaVenta = new Date();
-        const batch = db.batch(); // Usamos un batch para asegurar que todas las escrituras se hagan juntas
-
+        const batch = db.batch();
         ventaActual.forEach(item => {
-            const ventaRef = db.collection('ventas').doc(); // Crea una nueva referencia de documento
+            const ventaRef = db.collection('ventas').doc();
             batch.set(ventaRef, {
                 codigo: item.codigo,
                 nombre: item.nombre,
@@ -2247,34 +2227,26 @@
                 fecha: fechaVenta
             });
         });
-
         try {
             await batch.commit();
             alert('¡Venta registrada con éxito!');
-            ventaActual = []; // Limpiar el carrito
+            ventaActual = [];
             renderVentaActual();
         } catch (error) {
             console.error("Error al registrar la venta: ", error);
-            alert('Hubo un error al registrar la venta. Inténtalo de nuevo.');
+            alert('Hubo un error al registrar la venta.');
         }
-    });  
+    });
 
     async function generarReporteMasVendidos(fechaInicio = null, fechaFin = null) {
         reportesList.innerHTML = '<p>Cargando reporte...</p>';
         try {
             let query = db.collection('ventas');
-
-            // NUEVO: Lógica para aplicar filtros de fecha
-            if (fechaInicio) {
-                query = query.where('fecha', '>=', fechaInicio);
-            }
-            if (fechaFin) {
-                query = query.where('fecha', '<=', fechaFin);
-            }
+            if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
+            if (fechaFin) query = query.where('fecha', '<=', fechaFin);
 
             const ventasSnapshot = await query.get();
             const productosVendidos = {};
-
             ventasSnapshot.forEach(doc => {
                 const venta = doc.data();
                 if (productosVendidos[venta.codigo]) {
@@ -2285,65 +2257,74 @@
             });
 
             const sorted = Object.values(productosVendidos).sort((a, b) => b.cantidad - a.cantidad);
-            
             reportesList.innerHTML = '';
             if (sorted.length === 0) {
-                 reportesList.innerHTML = '<p>No hay datos de ventas para este periodo.</p>';
-                 return;
+                reportesList.innerHTML = '<p>No hay datos de ventas para este periodo.</p>';
+                return;
             }
-
             sorted.forEach((prod, index) => {
                 const card = document.createElement('div');
                 card.className = 'list-item-card report-card';
                 card.innerHTML = `<div class="rank">#${index + 1}</div><h3>${prod.nombre}</h3><p><strong>Unidades vendidas:</strong> ${prod.cantidad}</p>`;
                 reportesList.appendChild(card);
             });
-
         } catch (error) {
             console.error("Error al generar el reporte: ", error);
-            reportesList.innerHTML = '<p>Error al cargar el reporte. Revisa la consola.</p>';
+            reportesList.innerHTML = '<p>Error al cargar el reporte.</p>';
         }
     }
-
+    
     reportesFiltros.addEventListener('click', e => {
-        if (e.target.tagName !== 'BUTTON') return;
-
+        if (e.target.tagName !== 'BUTTON' || e.target.id === 'btn-filtrar-periodo') return;
         document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
-
         const periodo = e.target.dataset.periodo;
         let fechaInicio = new Date();
-
-        if (periodo === 'semana') {
-            fechaInicio.setDate(fechaInicio.getDate() - 7);
-            generarReporteMasVendidos(fechaInicio);
-        } else if (periodo === 'mes') {
-            fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-            generarReporteMasVendidos(fechaInicio);
-        } else if (periodo === 'siempre') {
-            generarReporteMasVendidos();
-        }
+        if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7);
+        else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+        else fechaInicio = null;
+        generarReporteMasVendidos(fechaInicio);
     });
+
 
     btnFiltrarPeriodo.addEventListener('click', () => {
-        const fechaInicio = new Date(document.getElementById('reporte-fecha-inicio').value);
-        const fechaFin = new Date(document.getElementById('reporte-fecha-fin').value);
-        fechaFin.setHours(23, 59, 59); // Incluir todo el día de fin
+        const fechaInicioStr = document.getElementById('reporte-fecha-inicio').value;
+        const fechaFinStr = document.getElementById('reporte-fecha-fin').value;
+        if (!fechaInicioStr || !fechaFinStr) {
+            alert('Por favor selecciona ambas fechas.');
+            return;
+        }
+        const fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
+        const fechaFin = new Date(fechaFinStr + 'T23:59:59');
         generarReporteMasVendidos(fechaInicio, fechaFin);
     });
+
+    faltanteSearch.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
+        renderFaltanteSearchResults(filtered);
+    });
+
+    function renderFaltanteSearchResults(products) {
+        faltanteSearchResults.innerHTML = '';
+        products.slice(0, 50).forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'list-item-card';
+            card.innerHTML = `<h3>${product.nombre}</h3><p>Código: ${product.codigo}</p>`;
+            card.onclick = () => registrarFaltanteInventario(product);
+            faltanteSearchResults.appendChild(card);
+        });
+    }
 
     faltanteManualInput.addEventListener('input', e => {
         const query = e.target.value.toLowerCase();
         faltanteManualSugerencias.innerHTML = '';
         if (query.length < 2) return;
-
         const sugerencias = faltantesManualesCache.filter(item => item.nombre.toLowerCase().includes(query));
-        
         sugerencias.forEach(item => {
             const div = document.createElement('div');
             div.textContent = item.nombre;
-            div.style.padding = '8px';
-            div.style.cursor = 'pointer';
+            div.style.cssText = 'padding: 8px; cursor: pointer;';
             div.onmouseover = () => div.style.backgroundColor = '#f0f0f0';
             div.onmouseout = () => div.style.backgroundColor = 'white';
             div.onclick = () => {
@@ -2355,15 +2336,11 @@
     });
 
     async function registrarFaltante(docId, nombre, esDeInventario) {
-        const registroRef = db.collection('solicitudes_faltantes').doc(); // Nuevo registro único
-        const faltanteRef = db.collection('faltantes').doc(docId); // Documento para el contador total
-
+        const registroRef = db.collection('solicitudes_faltantes').doc();
+        const faltanteRef = db.collection('faltantes').doc(docId);
         try {
             await db.runTransaction(async (transaction) => {
-                // 1. Siempre crea un nuevo registro de la solicitud con su fecha
                 transaction.set(registroRef, { nombre, esDeInventario, fecha: new Date() });
-
-                // 2. Actualiza el contador general del medicamento
                 const doc = await transaction.get(faltanteRef);
                 if (!doc.exists) {
                     transaction.set(faltanteRef, { nombre, esDeInventario, contador: 1 });
@@ -2382,7 +2359,7 @@
     }
 
     async function registrarFaltanteInventario(product) {
-        if (!confirm(`¿Confirmas que "${product.nombre}" está agotado y fue solicitado?`)) return;
+        if (!confirm(`¿Confirmas que "${product.nombre}" está agotado?`)) return;
         await registrarFaltante(product.codigo, product.nombre, true);
     }
     
@@ -2390,7 +2367,6 @@
         const nombreManual = faltanteManualInput.value.trim();
         if (nombreManual === '') return;
         const docId = nombreManual.toLowerCase().replace(/\s+/g, '-');
-        
         if (await registrarFaltante(docId, nombreManual, false)) {
             faltanteManualInput.value = '';
             faltanteManualSugerencias.innerHTML = '';
@@ -2404,6 +2380,7 @@
         faltantesManualesList.style.display = 'block';
         faltantesInventarioList.style.display = 'none';
     });
+
     tabInventario.addEventListener('click', () => {
         tabInventario.classList.add('active');
         tabManuales.classList.remove('active');
@@ -2411,19 +2388,15 @@
         faltantesManualesList.style.display = 'none';
     });
     
-    // NUEVO: Función principal para generar reporte de faltantes con filtros
     async function generarReporteFaltantes(fechaInicio = null) {
         faltantesManualesList.innerHTML = '<p>Cargando...</p>';
         faltantesInventarioList.innerHTML = '<p>Cargando...</p>';
-        
         let query = db.collection('solicitudes_faltantes');
         if (fechaInicio) {
             query = query.where('fecha', '>=', fechaInicio);
         }
-
         const snapshot = await query.get();
         const conteo = {};
-
         snapshot.forEach(doc => {
             const data = doc.data();
             const id = data.nombre.toLowerCase();
@@ -2432,14 +2405,9 @@
             }
             conteo[id].cantidad++;
         });
-
         const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad);
-        
-        // Limpiar listas
         faltantesManualesList.innerHTML = '';
         faltantesInventarioList.innerHTML = '';
-
-        // Poblar listas
         sorted.forEach(item => {
             const div = document.createElement('div');
             div.className = 'item';
@@ -2450,16 +2418,13 @@
                 faltantesManualesList.appendChild(div);
             }
         });
-        if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>';
-        if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>';
+        if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos.</p>';
+        if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos.</p>';
     }
     
-    // NUEVO: Función que carga el caché para el autocompletado y luego llama al reporte
     async function cargarYGenerarReporteFaltantes() {
-        // Cargar caché
         const snapshot = await db.collection('faltantes').where('esDeInventario', '==', false).get();
         faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-        // Generar reporte
         generarReporteFaltantes(); 
     }
 
@@ -2467,26 +2432,18 @@
         if (e.target.tagName !== 'BUTTON') return;
         document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
-        
         const periodo = e.target.dataset.periodo;
         let fechaInicio = new Date();
         if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7);
         else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-        else fechaInicio = null; // Siempre
-        
+        else fechaInicio = null;
         generarReporteFaltantes(fechaInicio);
     });
-
-    btnFaltante.addEventListener('click', () => {
-        showSection(faltanteSection, btnFaltante);
-        renderFaltanteSearchResults(allProducts);
-        cargarYGenerarReporteFaltantes();
-    });
-
     loadData();
 });
 </script>   
 </body>
 </html>
+
 
 
