@@ -141,14 +141,20 @@
 
         <div id="reportes-section" class="content-section" style="display: none;">
             <h2>Reporte de Productos Más Vendidos</h2>
-<div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-    <button data-periodo="semana">Esta Semana</button>
-    <button data-periodo="mes">Este Mes</button>
-    <button data-periodo="siempre" class="active">Desde Siempre</button>
-    <span>| O un periodo específico:</span>
-    <input type="date" id="reporte-fecha-inicio">
-    <input type="date" id="reporte-fecha-fin">
-    <button id="btn-filtrar-periodo">Filtrar</button>
+<div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; justify-content: space-between;">
+    
+    <div class="filtro-grupo" style="display: flex; gap: 0.5rem; border: 1px solid #ccc; padding: 5px; border-radius: 8px;">
+        <button data-periodo="semana">Esta Semana</button>
+        <button data-periodo="mes">Este Mes</button>
+        <button data-periodo="siempre" class="active">Desde Siempre</button>
+    </div>
+
+    <div class="filtro-grupo" style="display: flex; gap: 0.5rem; align-items: center;">
+        <span>Periodo específico:</span>
+        <input type="date" id="reporte-fecha-inicio">
+        <input type="date" id="reporte-fecha-fin">
+        <button id="btn-filtrar-periodo">Filtrar</button>
+    </div>
 </div>
 <div id="reportes-list"></div>
         </div>
@@ -254,11 +260,11 @@
         showSection(reportesSection, btnReportes);
         generarReporteMasVendidos(); // Generar el reporte al entrar a la sección
     });
+    
     btnFaltante.addEventListener('click', () => {
         showSection(faltanteSection, btnFaltante);
         renderFaltanteSearchResults(allProducts);
-        cargarFaltantesManuales();
-    });
+        cargarYGenerarReporteFaltantes(); 
         
     function loadData() {
         const miInventario = [
@@ -2444,6 +2450,7 @@
 </script>   
 </body>
 </html>
+
 
 
 
