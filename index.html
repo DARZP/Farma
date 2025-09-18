@@ -106,6 +106,7 @@
             <button id="btn-venta">Venta</button>
             <button id="btn-reportes">Reportes</button>
             <button id="btn-faltante">Medicamento Faltante</button>
+            <button id="btn-compras">Lista de Compras</button> </nav>
         </nav>
     </header>
 
@@ -191,6 +192,32 @@
                  </div>
              </div>
         </div>
+
+        <div id="compras-section" class="content-section" style="display: none;">
+    <div class="faltante-container"> <div class="faltante-main">
+            <h2>Añadir a la Lista de Compras</h2>
+            
+            <h3 style="margin-top: 2rem;">Desde el Inventario</h3>
+            <p>Busca un producto que necesites resurtir.</p>
+            <input type="text" id="compras-search-inventario" class="search-container" placeholder="Buscar producto en inventario...">
+            <div id="compras-search-results" style="max-height: 400px; overflow-y: auto;"></div>
+
+            <hr style="margin: 2rem 0;">
+
+            <h3 style="margin-top: 1rem;">Manualmente (No en inventario)</h3>
+            <p>Escribe el nombre de un producto nuevo para ordenar.</p>
+            <input type="text" id="compras-manual-input" placeholder="Buscar o escribir producto..." autocomplete="off">
+            <div id="compras-manual-sugerencias" style="border: 1px solid #ccc; border-top: none;"></div>
+            <button id="btn-agregar-compra-manual" class="action-button">Añadir a la lista</button>
+        </div>
+        <div class="faltante-sidebar">
+            <h3>Lista de Compras Pendientes</h3>
+            <div id="compras-list">
+                </div>
+        </div>
+    </div>
+</div>
+        
     </main>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -206,7 +233,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
-        const menuClasificaciones = document.getElementById('menu-clasificaciones');
+    const menuClasificaciones = document.getElementById('menu-clasificaciones');
     const productList = document.getElementById('product-list');
     const globalSearch = document.getElementById('globalSearch');
     const currentClassificationTitle = document.getElementById('current-classification-title');
@@ -235,14 +262,23 @@
     const tabInventario = document.getElementById('tab-inventario');
     const faltantesInventarioList = document.getElementById('faltantes-inventario-list');
     const faltantesFiltros = document.getElementById('faltantes-filtros');
+    const comprasSection = document.getElementById('compras-section');
+    const btnCompras = document.getElementById('btn-compras');
+    const comprasSearchInventario = document.getElementById('compras-search-inventario');
+    const comprasSearchResults = document.getElementById('compras-search-results');
+    const comprasManualInput = document.getElementById('compras-manual-input');
+    const comprasManualSugerencias = document.getElementById('compras-manual-sugerencias');
+    const btnAgregarCompraManual = document.getElementById('btn-agregar-compra-manual');
+    const comprasList = document.getElementById('compras-list');
 
     let allProducts = [];
     let classifications = {};
     let ventaActual = []; 
     let faltantesManualesCache = [];
+    let comprasManualesCache = [];
 
-    const sections = [inventarioSection, ventaSection, reportesSection, faltanteSection];
-    const menuButtons = [btnInventario, btnVenta, btnReportes, btnFaltante];
+    const sections = [inventarioSection, ventaSection, reportesSection, faltanteSection, comprasSection];
+    const menuButtons = [btnInventario, btnVenta, btnReportes, btnFaltante, btnCompras];
 
     function showSection(sectionToShow, buttonToActivate) {
         sections.forEach(section => section.style.display = 'none');
@@ -252,19 +288,14 @@
     }
 
     btnInventario.addEventListener('click', () => showSection(inventarioSection, btnInventario));
-    btnVenta.addEventListener('click', () => {
-        showSection(ventaSection, btnVenta);
-        renderVentaSearchResults(allProducts); // Mostrar todos los productos al inicio
-    });
-    btnReportes.addEventListener('click', () => {
-        showSection(reportesSection, btnReportes);
-        generarReporteMasVendidos(); // Generar el reporte al entrar a la sección
-    });
+    btnVenta.addEventListener('click', () => { showSection(ventaSection, btnVenta); renderVentaSearchResults(allProducts); });
+    btnReportes.addEventListener('click', () => { showSection(reportesSection, btnReportes); generarReporteMasVendidos(); });
+    btnFaltante.addEventListener('click', () => { showSection(faltanteSection, btnFaltante); renderFaltanteSearchResults(allProducts); cargarYGenerarReporteFaltantes(); });
     
-    btnFaltante.addEventListener('click', () => {
-        showSection(faltanteSection, btnFaltante);
-        renderFaltanteSearchResults(allProducts);
-        cargarYGenerarReporteFaltantes(); 
+    // NUEVO: Event listener para la nueva pestaña
+    btnCompras.addEventListener('click', () => {
+        showSection(comprasSection, btnCompras);
+        cargarListaDeCompras();
     });
         
     function loadData() {
@@ -2377,10 +2408,134 @@
     async function cargarYGenerarReporteFaltantes() { const snapshot = await db.collection('faltantes').where('esDeInventario', '==', false).get(); faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); generarReporteFaltantes(); }
     faltantesFiltros.addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') return; document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); const periodo = e.target.dataset.periodo; let fechaInicio = new Date(); if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7); else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1); else fechaInicio = null; generarReporteFaltantes(fechaInicio); });
     loadData();
+    async function cargarListaDeCompras() {
+        comprasList.innerHTML = '<p>Cargando lista...</p>';
+        try {
+            const snapshot = await db.collection('lista_compras').orderBy('fechaAgregado', 'desc').get();
+            
+            comprasList.innerHTML = '';
+            if (snapshot.empty) {
+                comprasList.innerHTML = '<p>La lista de compras está vacía.</p>';
+            }
+            
+            snapshot.forEach(doc => {
+                const item = doc.data();
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `
+                    <span>${item.nombre}</span>
+                    <button class="btn-remover-compra" data-id="${doc.id}" style="background:red; color:white; border:none; cursor:pointer;">Quitar</button>
+                `;
+                comprasList.appendChild(div);
+            });
+
+            // Actualiza el caché para el autocompletado
+            comprasManualesCache = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(item => item.esManual);
+
+        } catch (error) {
+            console.error("Error al cargar la lista de compras:", error);
+            comprasList.innerHTML = '<p>No se pudo cargar la lista.</p>';
+        }
+    }
+
+    comprasSearchInventario.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
+        
+        comprasSearchResults.innerHTML = '';
+        filtered.slice(0, 50).forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'list-item-card';
+            card.style.cursor = 'pointer';
+            card.innerHTML = `<h3>${product.nombre}</h3><p>Código: ${product.codigo}</p>`;
+            card.onclick = () => agregarACompras(product);
+            comprasSearchResults.appendChild(card);
+        });
+    });
+
+    async function agregarACompras(itemData, esManual = false) {
+        const docId = esManual ? itemData.nombre.toLowerCase().replace(/\s+/g, '-') : itemData.codigo;
+        
+        const itemRef = db.collection('lista_compras').doc(docId);
+        
+        try {
+            const doc = await itemRef.get();
+            if (doc.exists) {
+                alert(`"${itemData.nombre}" ya está en la lista de compras.`);
+                return;
+            }
+
+            await itemRef.set({
+                nombre: itemData.nombre,
+                codigo: esManual ? null : itemData.codigo,
+                esManual: esManual,
+                fechaAgregado: new Date()
+            });
+
+            // Limpiar campos y refrescar
+            if(esManual) comprasManualInput.value = '';
+            comprasSearchInventario.value = '';
+            comprasSearchResults.innerHTML = '';
+            
+            cargarListaDeCompras(); // Refresca la lista para mostrar el nuevo item
+
+        } catch (error) {
+            console.error("Error al agregar a la lista de compras:", error);
+            alert("No se pudo agregar el producto a la lista.");
+        }
+    }
+
+    btnAgregarCompraManual.addEventListener('click', () => {
+        const nombre = comprasManualInput.value.trim();
+        if (nombre) {
+            agregarACompras({ nombre: nombre }, true);
+        }
+    });
+
+    // Lógica para el autocompletado del campo manual
+    comprasManualInput.addEventListener('input', e => {
+        const query = e.target.value.toLowerCase();
+        comprasManualSugerencias.innerHTML = '';
+        if (query.length < 2) return;
+
+        const sugerencias = comprasManualesCache.filter(item => item.nombre.toLowerCase().includes(query));
+        
+        sugerencias.forEach(item => {
+            const div = document.createElement('div');
+            div.textContent = item.nombre;
+            div.style.cssText = 'padding: 8px; cursor: pointer;';
+            div.onmouseover = () => div.style.backgroundColor = '#f0f0f0';
+            div.onmouseout = () => div.style.backgroundColor = 'white';
+            div.onclick = () => {
+                comprasManualInput.value = item.nombre;
+                comprasManualSugerencias.innerHTML = '';
+            };
+            comprasManualSugerencias.appendChild(div);
+        });
+    });
+
+    comprasList.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('btn-remover-compra')) {
+            const docId = e.target.dataset.id;
+            if (confirm("¿Estás seguro de que quieres quitar este producto de la lista?")) {
+                try {
+                    await db.collection('lista_compras').doc(docId).delete();
+                    cargarListaDeCompras(); // Refresca la lista
+                } catch (error) {
+                    console.error("Error al quitar el producto:", error);
+                    alert("No se pudo quitar el producto.");
+                }
+            }
+        }
+    });
+    loadData();     
 });
 </script>   
 </body>
 </html>
+
 
 
 
