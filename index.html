@@ -4,205 +4,249 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario Interactivo - Farma Blanca</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
     <style>
     :root {
-    --primary-blue: #005A9C;
-    --primary-green: #2E8540;
-    --light-gray: #f4f4f4;
-    --dark-text: #333;
-    --white: #ffffff;
-    --shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    background-color: var(--light-gray);
-    color: var(--dark-text);
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-}
-
-header {
-    background: linear-gradient(90deg, var(--primary-blue), var(--primary-green));
-    color: var(--white);
-    padding: 1rem 2rem;
-    text-align: center;
-    box-shadow: var(--shadow);
-}
-
-header h1 {
-    margin: 0;
-}
-
-main {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-}
-
-#sidebar {
-    width: 250px;
-    background-color: var(--white);
-    padding: 1rem;
-    box-shadow: var(--shadow);
-    overflow-y: auto;
-}
-
-#sidebar h2 {
-    color: var(--primary-blue);
-    border-bottom: 2px solid var(--primary-green);
-    padding-bottom: 0.5rem;
-}
-
-.search-container input {
-    width: 100%;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-#menu-clasificaciones a {
-    display: block;
-    color: var(--dark-text);
-    padding: 0.75rem;
-    text-decoration: none;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-    transition: background-color 0.3s, color 0.3s;
-}
-
-#menu-clasificaciones a:hover, #menu-clasificaciones a.active {
-    background-color: var(--primary-green);
-    color: var(--white);
-}
-
-#content {
-    flex: 1;
-    padding: 2rem;
-    overflow-y: auto;
-}
-
-#product-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-}
-
-.product-card {
-    background-color: var(--white);
-    border-radius: 8px;
-    box-shadow: var(--shadow);
-    padding: 1.5rem;
-    transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.product-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-}
-
-.product-card h3 {
-    margin-top: 0;
-    color: var(--primary-blue);
-    font-size: 1.1rem;
-}
-
-.product-card p {
-    margin: 0.5rem 0;
-    font-size: 0.9rem;
-}
-
-.prices {
-    margin-top: 1rem;
-    border-top: 1px solid var(--light-gray);
-    padding-top: 1rem;
-}
-
-.price-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    position: relative;
-}
-
-.price-item .farmacia {
-    font-weight: bold;
-    color: var(--primary-green);
-    cursor: help;
-}
-
-.price-item .tooltip {
-    visibility: hidden;
-    width: 160px;
-    background-color: var(--dark-text);
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -80px;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.price-item .farmacia:hover .tooltip {
-    visibility: visible;
-    opacity: 1;
-}
-
-.suggested-price {
-    margin-top: 1rem;
-    padding: 1rem;
-    background-color: #e6f4ea;
-    border-left: 5px solid var(--primary-green);
-    border-radius: 4px;
-}
-
-.suggested-price strong {
-    font-size: 1.2rem;
-    color: var(--primary-green);
-}
-</style>
+        --primary-blue: #005A9C;
+        --primary-green: #2E8540;
+        --light-gray: #f4f4f4;
+        --dark-text: #333;
+        --white: #ffffff;
+        --shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    body {
+        font-family: Arial, sans-serif; margin: 0; background-color: var(--light-gray);
+        color: var(--dark-text); display: flex; flex-direction: column; height: 100vh;
+    }
+    header {
+        background: linear-gradient(90deg, var(--primary-blue), var(--primary-green)); color: var(--white);
+        padding: 1rem 2rem; box-shadow: var(--shadow);
+    }
+    header h1, header p { text-align: center; margin: 0; }
+    nav#main-menu {
+        display: flex; justify-content: center; gap: 1rem; background-color: #004a80; padding: 0.5rem;
+    }
+    nav#main-menu button {
+        background-color: transparent; border: 1px solid var(--white); color: var(--white);
+        padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; transition: background-color 0.3s;
+    }
+    nav#main-menu button:hover, nav#main-menu button.active { background-color: var(--primary-green); }
+    main { display: flex; flex: 1; overflow: hidden; }
+    #sidebar {
+        width: 250px; background-color: var(--white); padding: 1rem;
+        box-shadow: var(--shadow); overflow-y: auto;
+    }
+    #sidebar h2 {
+        color: var(--primary-blue); border-bottom: 2px solid var(--primary-green); padding-bottom: 0.5rem;
+    }
+    .search-container input {
+        width: 100%; padding: 0.5rem; margin-bottom: 1rem;
+        border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+    }
+    #menu-clasificaciones a {
+        display: block; color: var(--dark-text); padding: 0.75rem; text-decoration: none;
+        border-radius: 4px; margin-bottom: 0.5rem; transition: background-color 0.3s, color 0.3s;
+    }
+    #menu-clasificaciones a:hover, #menu-clasificaciones a.active {
+        background-color: var(--primary-green); color: var(--white);
+    }
+    .content-section { flex: 1; padding: 2rem; overflow-y: auto; }
+    #product-list, #venta-search-results, #reportes-list, #faltante-search-results {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;
+    }
+    .product-card, .list-item-card {
+        background-color: var(--white); border-radius: 8px; box-shadow: var(--shadow);
+        padding: 1.5rem; transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .product-card:hover, .list-item-card:hover {
+        transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    .product-card h3, .list-item-card h3 { margin-top: 0; color: var(--primary-blue); font-size: 1.1rem; }
+    .product-card p, .list-item-card p { margin: 0.5rem 0; font-size: 0.9rem; }
+    .prices { margin-top: 1rem; border-top: 1px solid var(--light-gray); padding-top: 1rem; }
+    .price-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; position: relative; }
+    .price-item .farmacia { font-weight: bold; color: var(--primary-green); cursor: help; }
+    .price-item .tooltip {
+        visibility: hidden; width: 160px; background-color: var(--dark-text); color: #fff; text-align: center;
+        border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%;
+        margin-left: -80px; opacity: 0; transition: opacity 0.3s;
+    }
+    .price-item .farmacia:hover .tooltip { visibility: visible; opacity: 1; }
+    .suggested-price {
+        margin-top: 1rem; padding: 1rem; background-color: #e6f4ea;
+        border-left: 5px solid var(--primary-green); border-radius: 4px;
+    }
+    .suggested-price strong { font-size: 1.2rem; color: var(--primary-green); }
+    /* Estilos para secciones nuevas */
+    .venta-container, .faltante-container { display: flex; gap: 2rem; }
+    .venta-main, .faltante-main { flex: 3; }
+    .venta-sidebar, .faltante-sidebar { flex: 2; background-color: var(--white); padding: 1rem; border-radius: 8px; box-shadow: var(--shadow); }
+    .venta-sidebar h3, .faltante-sidebar h3 { color: var(--primary-blue); border-bottom: 2px solid var(--primary-green); padding-bottom: 0.5rem;}
+    #venta-actual-list .item, #faltante-list .item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #eee;}
+    #venta-actual-list .item input { width: 50px; text-align: right; }
+    button.action-button { 
+        width: 100%; padding: 1rem; background-color: var(--primary-green); color: white;
+        border: none; border-radius: 5px; font-size: 1.2rem; cursor: pointer; margin-top: 1rem; 
+    }
+    button.action-button:hover { background-color: #256d33; }
+    .report-card { grid-column: span 1; padding: 1.5rem; }
+    .report-card .rank { font-size: 2rem; font-weight: bold; color: var(--primary-blue); }
+    #faltante-manual-input { width: calc(100% - 1rem); padding: 0.5rem; margin-top: 1rem; }
+    </style>
 </head>
 <body>
     <header>
         <h1>Farma Blanca</h1>
         <p>Análisis de Inventario y Competencia</p>
+        <nav id="main-menu">
+            <button id="btn-inventario" class="active">Inventario</button>
+            <button id="btn-venta">Venta</button>
+            <button id="btn-reportes">Reportes</button>
+            <button id="btn-faltante">Medicamento Faltante</button>
+        </nav>
     </header>
 
     <main>
-        <div id="sidebar">
-            <h2>Clasificaciones</h2>
-            <div class="search-container">
-                <input type="text" id="globalSearch" placeholder="Buscar en todo el inventario...">
+        <div id="inventario-section" class="content-section" style="display: flex;">
+            <div id="sidebar">
+                <h2>Clasificaciones</h2>
+                <div class="search-container">
+                    <input type="text" id="globalSearch" placeholder="Buscar en todo el inventario...">
+                </div>
+                <nav id="menu-clasificaciones"></nav>
             </div>
-            <nav id="menu-clasificaciones"></nav>
+            <div id="content" style="flex: 1; padding: 2rem; overflow-y: auto;">
+                <h2 id="current-classification-title">Todos los Productos</h2>
+                <div id="product-list"></div>
+            </div>
         </div>
 
-        <div id="content">
-            <h2 id="current-classification-title">Todos los Productos</h2>
-            <div id="product-list">
+        <div id="venta-section" class="content-section" style="display: none;">
+            <div class="venta-container">
+                <div class="venta-main">
+                    <h2>Registrar Venta</h2>
+                    <input type="text" id="ventaSearch" class="search-container" placeholder="Buscar producto para vender...">
+                    <div id="venta-search-results"></div>
                 </div>
+                <div class="venta-sidebar">
+                    <h3>Venta Actual</h3>
+                    <div id="venta-actual-list"></div>
+                    <button id="btn-registrar-venta" class="action-button">Registrar Venta</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="reportes-section" class="content-section" style="display: none;">
+            <h2>Reporte de Productos Más Vendidos</h2>
+            <div id="reportes-list"></div>
+        </div>
+
+        <div id="faltante-section" class="content-section" style="display: none;">
+             <div class="faltante-container">
+                <div class="faltante-main">
+                    <h2>Registrar Medicamento Faltante</h2>
+                    <p>Busca un producto de tu inventario que se haya agotado.</p>
+                    <input type="text" id="faltanteSearch" class="search-container" placeholder="Buscar producto en inventario...">
+                    <div id="faltante-search-results"></div>
+                </div>
+                <div class="faltante-sidebar">
+                    <h3>Registro Manual</h3>
+                    <p>Si el cliente buscó un medicamento que no manejas, escríbelo aquí.</p>
+                    <input type="text" id="faltante-manual-input" placeholder="Nombre del medicamento no encontrado...">
+                    <button id="btn-registrar-faltante-manual" class="action-button">Registrar Faltante</button>
+                    <h4>Faltantes Registrados Manualmente:</h4>
+                    <div id="faltantes-manuales-list"></div>
+                </div>
+            </div>
         </div>
     </main>
-
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+    // --- INICIO DE CONFIGURACIÓN DE FIREBASE ---
+    // ¡¡¡IMPORTANTE!!! PEGA AQUÍ EL OBJETO de configuración que copiaste de tu proyecto de Firebase.
+    const firebaseConfig = {
+        apiKey: "AIzaSyDueiOzUn9Ti1zPHuM3xiY8l8aXJj2khbo",
+        authDomain: "farmablanca.firebaseapp.com",
+        projectId: "farmablanca",
+        storageBucket: "farmablanca.firebasestorage.app",
+        messagingSenderId: "724865682093",
+        appId: "1:724865682093:web:7de1b7b7960bf6f308d424",
+        measurementId: "G-C90FQ8RPL5"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    // --- FIN DE CONFIGURACIÓN DE FIREBASE ---
+
+    // --- Selectores de Elementos del DOM ---
     const menuClasificaciones = document.getElementById('menu-clasificaciones');
     const productList = document.getElementById('product-list');
     const globalSearch = document.getElementById('globalSearch');
     const currentClassificationTitle = document.getElementById('current-classification-title');
+
+    // Selectores de las nuevas secciones
+    const inventarioSection = document.getElementById('inventario-section');
+    const ventaSection = document.getElementById('venta-section');
+    const reportesSection = document.getElementById('reportes-section');
+    const faltanteSection = document.getElementById('faltante-section');
+
+    // Selectores de los botones del menú principal
+    const btnInventario = document.getElementById('btn-inventario');
+    const btnVenta = document.getElementById('btn-venta');
+    const btnReportes = document.getElementById('btn-reportes');
+    const btnFaltante = document.getElementById('btn-faltante');
+
+    // Elementos de la sección de Venta
+    const ventaSearch = document.getElementById('ventaSearch');
+    const ventaSearchResults = document.getElementById('venta-search-results');
+    const ventaActualList = document.getElementById('venta-actual-list');
+    const btnRegistrarVenta = document.getElementById('btn-registrar-venta');
+    
+    // Elementos de la sección de Reportes
+    const reportesList = document.getElementById('reportes-list');
+
+    // Elementos de la sección Faltante
+    const faltanteSearch = document.getElementById('faltanteSearch');
+    const faltanteSearchResults = dcument.getElementById('faltante-search-results');
+    const faltanteManualInput = document.getElementById('faltante-manual-input');
+    const btnRegistrarFaltanteManual = document.getElementById('btn-registrar-faltante-manual');
+    const faltantesManualesList = document.getElementById('faltantes-manuales-list');
+
     let allProducts = [];
     let classifications = {};
+    let ventaActual = []; // Carrito de la venta actual
 
+    // --- Lógica de Navegación Principal ---
+    const sections = [inventarioSection, ventaSection, reportesSection, faltanteSection];
+    const menuButtons = [btnInventario, btnVenta, btnReportes, btnFaltante];
+
+    function showSection(sectionToShow, buttonToActivate) {
+        sections.forEach(section => section.style.display = 'none');
+        menuButtons.forEach(btn => btn.classList.remove('active'));
+
+        sectionToShow.style.display = 'flex'; // Usamos flex para mantener el layout
+        buttonToActivate.classList.add('active');
+    }
+
+    btnInventario.addEventListener('click', () => showSection(inventarioSection, btnInventario));
+    btnVenta.addEventListener('click', () => {
+        showSection(ventaSection, btnVenta);
+        renderVentaSearchResults(allProducts); // Mostrar todos los productos al inicio
+    });
+    btnReportes.addEventListener('click', () => {
+        showSection(reportesSection, btnReportes);
+        generarReporteMasVendidos(); // Generar el reporte al entrar a la sección
+    });
+    btnFaltante.addEventListener('click', () => {
+        showSection(faltanteSection, btnFaltante);
+        renderFaltanteSearchResults(allProducts);
+        cargarFaltantesManuales();
+    });
+        
     // --- Cargar y Procesar los datos INTERNOS (formato JSON) ---
     function loadData() {
         // --- INICIO DE TU INVENTARIO COMPLETO ---
@@ -1440,20 +1484,8 @@ main {
                     { codigo: "7501463331302", nombre: "EDIGAR LAVADO VAGINAL", costoProveedor: 62.93 }
                 ]
             },
-            
-
-
-
-
-
-            // Puedes agregar más clasificaciones aquí...
         ];
-        // --- FIN DE TU INVENTARIO ---
 
-
-        // --- PRECIOS DE COMPETENCIA INVESTIGADOS ---
-        // ¡Aquí está la magia! Agregué los precios que encontré para algunos de tus productos.
-        // Puedes agregar más manualmente siguiendo este formato.
         const competitorPrices = {
   '650240011429': [{ farmacia: 'Farmacias Guadalajara', precio: 224.90 }, { farmacia: 'Farmacia del Ahorro', precio: 234.00 }],
   '7501008409503': [{ farmacia: 'Farmacias Guadalajara', precio: 140.60 }, { farmacia: 'Farmacia San Pablo', precio: 151.50 }, { farmacia: 'Walmart', precio: 154.00 }, { farmacia: 'Farmacias Klyns', precio: 154.89 }],
@@ -2079,6 +2111,7 @@ main {
         });
     }
 
+
     function renderProducts(products) {
         productList.innerHTML = '';
         if (products.length === 0) {
@@ -2089,68 +2122,33 @@ main {
         products.forEach(product => {
             const card = document.createElement('div');
             card.className = 'product-card';
-
             let pricesHTML = '';
             let competitorPricesList = [];
             if (product.competencia && product.competencia.length > 0) {
                 product.competencia.forEach(comp => {
                     const beneficio = ((comp.precio - product.costoProveedor) / product.costoProveedor) * 100;
-                    pricesHTML += `
-                        <div class="price-item">
-                            <span class="farmacia">${comp.farmacia}
-                                <span class="tooltip">Beneficio: ${beneficio.toFixed(1)}%</span>
-                            </span>
-                            <span>$${comp.precio.toFixed(2)}</span>
-                        </div>
-                    `;
+                    pricesHTML += `<div class="price-item"><span class="farmacia">${comp.farmacia}<span class="tooltip">Beneficio: ${beneficio.toFixed(1)}%</span></span><span>$${comp.precio.toFixed(2)}</span></div>`;
                     competitorPricesList.push(comp.precio);
                 });
             }
-
-            let suggestedPriceHTML = '<p>No hay datos de competencia para sugerir un precio.</p>';
+            let suggestedPriceHTML = '<p>No hay datos de competencia.</p>';
             if (competitorPricesList.length > 0) {
                 const avgPrice = competitorPricesList.reduce((a, b) => a + b, 0) / competitorPricesList.length;
-                const suggestedPrice = avgPrice * 0.98; // Sugerimos un precio 2% por debajo del promedio
+                const suggestedPrice = avgPrice * 0.98;
                 const suggestedBenefit = ((suggestedPrice - product.costoProveedor) / product.costoProveedor) * 100;
-                suggestedPriceHTML = `
-                    <p>Precio Sugerido:</p>
-                    <strong>$${suggestedPrice.toFixed(2)}</strong>
-                    <p>Beneficio Estimado: <strong>${suggestedBenefit.toFixed(1)}%</strong></p>
-                `;
+                suggestedPriceHTML = `<p>Precio Sugerido:</p><strong>$${suggestedPrice.toFixed(2)}</strong><p>Beneficio Estimado: <strong>${suggestedBenefit.toFixed(1)}%</strong></p>`;
             }
-
-            card.innerHTML = `
-                <h3>${product.nombre}</h3>
-                <p><strong>Código:</strong> ${product.codigo}</p>
-                <p><strong>Costo Proveedor:</strong> $${product.costoProveedor.toFixed(2)}</p>
-                <div class="prices">
-                    <h4>Precios de Competencia</h4>
-                    ${pricesHTML || '<p>Sin datos</p>'}
-                </div>
-                <div class="suggested-price">
-                    ${suggestedPriceHTML}
-                </div>
-            `;
+            card.innerHTML = `<h3>${product.nombre}</h3><p><strong>Código:</strong> ${product.codigo}</p><p><strong>Costo Proveedor:</strong> $${product.costoProveedor.toFixed(2)}</p><div class="prices"><h4>Precios de Competencia</h4>${pricesHTML || '<p>Sin datos</p>'}</div><div class="suggested-price">${suggestedPriceHTML}</div>`;
             productList.appendChild(card);
         });
     }
-
-    // --- Lógica de Búsqueda y Filtros ---
     function filterProducts(query) {
         const normalizedQuery = query.toLowerCase().trim();
         const activeClassificationLink = document.querySelector('#menu-clasificaciones a.active');
-        
         if (!activeClassificationLink) return;
         const activeClassification = activeClassificationLink.textContent;
-        
-        let productsToSearch = (activeClassification === 'Todos los Productos') 
-            ? allProducts 
-            : classifications[activeClassification];
-
-        const filtered = productsToSearch.filter(product => 
-            product.nombre.toLowerCase().includes(normalizedQuery) ||
-            product.codigo.includes(normalizedQuery)
-        );
+        let productsToSearch = (activeClassification === 'Todos los Productos') ? allProducts : classifications[activeClassification];
+        const filtered = productsToSearch.filter(product => product.nombre.toLowerCase().includes(normalizedQuery) || product.codigo.includes(normalizedQuery));
         renderProducts(filtered);
     }
     
@@ -2161,9 +2159,242 @@ main {
 
     globalSearch.addEventListener('input', (e) => filterProducts(e.target.value));
 
-    // Iniciar la aplicación
+    // --- LÓGICA DE LA SECCIÓN DE VENTA ---
+    ventaSearch.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
+        renderVentaSearchResults(filtered);
+    });
+
+    function renderVentaSearchResults(products) {
+        ventaSearchResults.innerHTML = '';
+        products.slice(0, 50).forEach(product => { // Limitar a 50 resultados para no saturar
+            const card = document.createElement('div');
+            card.className = 'list-item-card';
+            card.innerHTML = `<h3>${product.nombre}</h3><p>Código: ${product.codigo}</p>`;
+            card.onclick = () => agregarProductoAVenta(product);
+            ventaSearchResults.appendChild(card);
+        });
+    }
+
+    function agregarProductoAVenta(product) {
+        const existente = ventaActual.find(item => item.codigo === product.codigo);
+        if (existente) {
+            existente.cantidad++;
+        } else {
+            ventaActual.push({ ...product, cantidad: 1 });
+        }
+        renderVentaActual();
+    }
+
+        function renderVentaActual() {
+        ventaActualList.innerHTML = '';
+        if (ventaActual.length === 0) {
+            ventaActualList.innerHTML = '<p>Agrega productos para vender.</p>';
+            return;
+        }
+        ventaActual.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `
+                <span>${item.nombre}</span>
+                <input type="number" value="${item.cantidad}" min="1" data-index="${index}">
+            `;
+            ventaActualList.appendChild(div);
+        });
+    }
+
+    ventaActualList.addEventListener('change', (e) => {
+        if (e.target.tagName === 'INPUT') {
+            const index = e.target.dataset.index;
+            const nuevaCantidad = parseInt(e.target.value, 10);
+            if (nuevaCantidad > 0) {
+                ventaActual[index].cantidad = nuevaCantidad;
+            } else {
+                ventaActual.splice(index, 1); // Eliminar si la cantidad es 0 o menos
+            }
+            renderVentaActual();
+        }
+    });
+
+    btnRegistrarVenta.addEventListener('click', async () => {
+        if (ventaActual.length === 0) {
+            alert('No hay productos en la venta actual.');
+            return;
+        }
+        const fechaVenta = new Date();
+        const batch = db.batch(); // Usamos un batch para asegurar que todas las escrituras se hagan juntas
+
+        ventaActual.forEach(item => {
+            const ventaRef = db.collection('ventas').doc(); // Crea una nueva referencia de documento
+            batch.set(ventaRef, {
+                codigo: item.codigo,
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                costoProveedor: item.costoProveedor,
+                fecha: fechaVenta
+            });
+        });
+
+        try {
+            await batch.commit();
+            alert('¡Venta registrada con éxito!');
+            ventaActual = []; // Limpiar el carrito
+            renderVentaActual();
+        } catch (error) {
+            console.error("Error al registrar la venta: ", error);
+            alert('Hubo un error al registrar la venta. Inténtalo de nuevo.');
+        }
+    });  
+
+        // --- LÓGICA DE LA SECCIÓN DE REPORTES ---
+    async function generarReporteMasVendidos() {
+        reportesList.innerHTML = '<p>Cargando reporte...</p>';
+        try {
+            const ventasSnapshot = await db.collection('ventas').get();
+            const productosVendidos = {};
+
+            ventasSnapshot.forEach(doc => {
+                const venta = doc.data();
+                if (productosVendidos[venta.codigo]) {
+                    productosVendidos[venta.codigo].cantidad += venta.cantidad;
+                } else {
+                    productosVendidos[venta.codigo] = {
+                        nombre: venta.nombre,
+                        cantidad: venta.cantidad
+                    };
+                }
+            });
+
+            const sorted = Object.values(productosVendidos).sort((a, b) => b.cantidad - a.cantidad);
+            
+            reportesList.innerHTML = '';
+            sorted.forEach((prod, index) => {
+                const card = document.createElement('div');
+                card.className = 'list-item-card report-card';
+                card.innerHTML = `
+                    <div class="rank">#${index + 1}</div>
+                    <h3>${prod.nombre}</h3>
+                    <p><strong>Unidades vendidas:</strong> ${prod.cantidad}</p>
+                `;
+                reportesList.appendChild(card);
+            });
+        } catch (error) {
+            console.error("Error al generar el reporte: ", error);
+            reportesList.innerHTML = '<p>Error al cargar el reporte. Revisa la consola.</p>';
+        }
+    }
+
+
+    // --- LÓGICA DE LA SECCIÓN DE MEDICAMENTO FALTANTE ---
+    faltanteSearch.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
+        renderFaltanteSearchResults(filtered);
+    });
+
+    function renderFaltanteSearchResults(products) {
+        faltanteSearchResults.innerHTML = '';
+        products.slice(0, 50).forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'list-item-card';
+            card.innerHTML = `<h3>${product.nombre}</h3><p>Código: ${product.codigo}</p>`;
+            card.onclick = () => registrarFaltanteInventario(product);
+            faltanteSearchResults.appendChild(card);
+        });
+    }
+
+        async function registrarFaltanteInventario(product) {
+        if (!confirm(`¿Confirmas que el producto "${product.nombre}" está agotado y fue solicitado?`)) return;
+        
+        const faltanteRef = db.collection('faltantes').doc(product.codigo);
+        try {
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(faltanteRef);
+                if (!doc.exists) {
+                    transaction.set(faltanteRef, {
+                        nombre: product.nombre,
+                        esDeInventario: true,
+                        contador: 1,
+                        ultimaSolicitud: new Date()
+                    });
+                } else {
+                    const nuevoContador = doc.data().contador + 1;
+                    transaction.update(faltanteRef, {
+                        contador: nuevoContador,
+                        ultimaSolicitud: new Date()
+                    });
+                }
+            });
+            alert(`Registro de faltante para "${product.nombre}" guardado.`);
+        } catch (error) {
+            console.error("Error al registrar faltante: ", error);
+            alert("Error al guardar el registro.");
+        }
+    }
+
+    btnRegistrarFaltanteManual.addEventListener('click', async () => {
+        const nombreManual = faltanteManualInput.value.trim();
+        if (nombreManual === '') {
+            alert('Por favor, escribe el nombre del medicamento.');
+            return;
+        }
+
+        // Usamos un ID basado en el nombre normalizado para evitar duplicados
+        const docId = nombreManual.toLowerCase().replace(/\s+/g, '-');
+        const faltanteRef = db.collection('faltantes').doc(docId);
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(faltanteRef);
+                if (!doc.exists) {
+                    transaction.set(faltanteRef, {
+                        nombre: nombreManual,
+                        esDeInventario: false,
+                        contador: 1,
+                        ultimaSolicitud: new Date()
+                    });
+                } else {
+                    const nuevoContador = doc.data().contador + 1;
+                    transaction.update(faltanteRef, { contador: nuevoContador, ultimaSolicitud: new Date() });
+                }
+            });
+            alert(`Registro de faltante para "${nombreManual}" guardado.`);
+            faltanteManualInput.value = '';
+            cargarFaltantesManuales();
+        } catch (error) {
+             console.error("Error al registrar faltante manual: ", error);
+            alert("Error al guardar el registro.");
+        }
+    });
+
+    async function cargarFaltantesManuales() {
+        faltantesManualesList.innerHTML = '<p>Cargando...</p>';
+        try {
+            const querySnapshot = await db.collection('faltantes')
+                .where('esDeInventario', '==', false)
+                .orderBy('ultimaSolicitud', 'desc')
+                .limit(10)
+                .get();
+            
+            faltantesManualesList.innerHTML = '';
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = `<span>${data.nombre}</span> <strong>(solicitado ${data.contador} veces)</strong>`;
+                faltantesManualesList.appendChild(item);
+            });
+        } catch (error) {
+            console.error("Error cargando faltantes manuales:", error);
+            faltantesManualesList.innerHTML = '<p>Error al cargar.</p>';
+        }
+    }
+
+    // --- Iniciar la aplicación ---
     loadData();
 });
 </script>
 </body>
+
 </html>
