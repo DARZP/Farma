@@ -141,32 +141,53 @@
 
         <div id="reportes-section" class="content-section" style="display: none;">
             <h2>Reporte de Productos Más Vendidos</h2>
-            <div id="reportes-list"></div>
+<div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+    <button data-periodo="semana">Esta Semana</button>
+    <button data-periodo="mes">Este Mes</button>
+    <button data-periodo="siempre" class="active">Desde Siempre</button>
+    <span>| O un periodo específico:</span>
+    <input type="date" id="reporte-fecha-inicio">
+    <input type="date" id="reporte-fecha-fin">
+    <button id="btn-filtrar-periodo">Filtrar</button>
+</div>
+<div id="reportes-list"></div>
         </div>
 
         <div id="faltante-section" class="content-section" style="display: none;">
              <div class="faltante-container">
-                <div class="faltante-main">
-                    <h2>Registrar Medicamento Faltante</h2>
-                    <p>Busca un producto de tu inventario que se haya agotado.</p>
-                    <input type="text" id="faltanteSearch" class="search-container" placeholder="Buscar producto en inventario...">
-                    <div id="faltante-search-results"></div>
-                </div>
-                <div class="faltante-sidebar">
-                    <h3>Registro Manual</h3>
-                    <p>Si el cliente buscó un medicamento que no manejas, escríbelo aquí.</p>
-                    <input type="text" id="faltante-manual-input" placeholder="Nombre del medicamento no encontrado...">
-                    <button id="btn-registrar-faltante-manual" class="action-button">Registrar Faltante</button>
-                    <h4>Faltantes Registrados Manualmente:</h4>
-                    <div id="faltantes-manuales-list"></div>
-                </div>
-            </div>
+                 <div class="faltante-main">
+                     <h2>Registrar Medicamento Faltante del Inventario</h2>
+                     <p>Busca un producto de tu inventario que se haya agotado y hazle clic para registrar la solicitud.</p>
+                     <input type="text" id="faltanteSearch" class="search-container" placeholder="Buscar producto en inventario...">
+                     <div id="faltante-search-results"></div>
+                 </div>
+                 <div class="faltante-sidebar">
+                     <h3>Registro Manual (No en inventario)</h3>
+                     <p>Escribe el nombre del medicamento. Si ya existe, aparecerá para que lo selecciones.</p>
+                     <input type="text" id="faltante-manual-input" placeholder="Buscar o escribir medicamento..." autocomplete="off">
+                     <div id="faltante-manual-sugerencias" style="border: 1px solid #ccc; border-top: none;"></div>
+                     <button id="btn-registrar-faltante-manual" class="action-button">Registrar Faltante</button>
+     
+                     <hr style="margin: 2rem 0;">        
+      
+                     <h3>Reporte de Faltantes</h3>
+                     <div id="faltantes-filtros" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                         <button data-periodo="semana">Semana</button>
+                         <button data-periodo="mes">Mes</button>   
+                         <button data-periodo="siempre" class="active">Siempre</button>
+                     </div>
+                     <div class="tabas" style="display: flex; border-bottom: 2px solid #ccc; margin-bottom: 1rem;">
+                         <button id="tab-manuales" class="active" style="padding: 0.5rem 1rem; border: none; background: #eee;">Manuales</button>
+                         <button id="tab-inventario" style="padding: 0.5rem 1rem; border: none; background: transparent;">Del Inventario</button>
+                     </div>
+                     <div id="faltantes-manuales-list"></div>
+                     <div id="faltantes-inventario-list" style="display: none;"></div>
+                 </div>
+             </div>
         </div>
     </main>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-    // --- INICIO DE CONFIGURACIÓN DE FIREBASE ---
-    // ¡¡¡IMPORTANTE!!! PEGA AQUÍ EL OBJETO de configuración que copiaste de tu proyecto de Firebase.
     const firebaseConfig = {
         apiKey: "AIzaSyDueiOzUn9Ti1zPHuM3xiY8l8aXJj2khbo",
         authDomain: "farmablanca.firebaseapp.com",
@@ -176,40 +197,31 @@
         appId: "1:724865682093:web:7de1b7b7960bf6f308d424",
         measurementId: "G-C90FQ8RPL5"
     };
-
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    // --- FIN DE CONFIGURACIÓN DE FIREBASE ---
-
-    // --- Selectores de Elementos del DOM ---
+    
     const menuClasificaciones = document.getElementById('menu-clasificaciones');
     const productList = document.getElementById('product-list');
     const globalSearch = document.getElementById('globalSearch');
     const currentClassificationTitle = document.getElementById('current-classification-title');
 
-    // Selectores de las nuevas secciones
     const inventarioSection = document.getElementById('inventario-section');
     const ventaSection = document.getElementById('venta-section');
     const reportesSection = document.getElementById('reportes-section');
     const faltanteSection = document.getElementById('faltante-section');
 
-    // Selectores de los botones del menú principal
     const btnInventario = document.getElementById('btn-inventario');
     const btnVenta = document.getElementById('btn-venta');
     const btnReportes = document.getElementById('btn-reportes');
     const btnFaltante = document.getElementById('btn-faltante');
 
-    // Elementos de la sección de Venta
     const ventaSearch = document.getElementById('ventaSearch');
     const ventaSearchResults = document.getElementById('venta-search-results');
     const ventaActualList = document.getElementById('venta-actual-list');
     const btnRegistrarVenta = document.getElementById('btn-registrar-venta');
     
-    // Elementos de la sección de Reportes
     const reportesList = document.getElementById('reportes-list');
 
-    // Elementos de la sección Faltante
     const faltanteSearch = document.getElementById('faltanteSearch');
     const faltanteSearchResults = document.getElementById('faltante-search-results');
     const faltanteManualInput = document.getElementById('faltante-manual-input');
@@ -218,9 +230,9 @@
 
     let allProducts = [];
     let classifications = {};
-    let ventaActual = []; // Carrito de la venta actual
+    let ventaActual = []; 
+    let faltantesManualesCache = [];
 
-    // --- Lógica de Navegación Principal ---
     const sections = [inventarioSection, ventaSection, reportesSection, faltanteSection];
     const menuButtons = [btnInventario, btnVenta, btnReportes, btnFaltante];
 
@@ -2247,11 +2259,20 @@
         }
     });  
 
-        // --- LÓGICA DE LA SECCIÓN DE REPORTES ---
-    async function generarReporteMasVendidos() {
+    async function generarReporteMasVendidos(fechaInicio = null, fechaFin = null) {
         reportesList.innerHTML = '<p>Cargando reporte...</p>';
         try {
-            const ventasSnapshot = await db.collection('ventas').get();
+            let query = db.collection('ventas');
+
+            // NUEVO: Lógica para aplicar filtros de fecha
+            if (fechaInicio) {
+                query = query.where('fecha', '>=', fechaInicio);
+            }
+            if (fechaFin) {
+                query = query.where('fecha', '<=', fechaFin);
+            }
+
+            const ventasSnapshot = await query.get();
             const productosVendidos = {};
 
             ventasSnapshot.forEach(doc => {
@@ -2259,143 +2280,213 @@
                 if (productosVendidos[venta.codigo]) {
                     productosVendidos[venta.codigo].cantidad += venta.cantidad;
                 } else {
-                    productosVendidos[venta.codigo] = {
-                        nombre: venta.nombre,
-                        cantidad: venta.cantidad
-                    };
+                    productosVendidos[venta.codigo] = { nombre: venta.nombre, cantidad: venta.cantidad };
                 }
             });
 
             const sorted = Object.values(productosVendidos).sort((a, b) => b.cantidad - a.cantidad);
             
             reportesList.innerHTML = '';
+            if (sorted.length === 0) {
+                 reportesList.innerHTML = '<p>No hay datos de ventas para este periodo.</p>';
+                 return;
+            }
+
             sorted.forEach((prod, index) => {
                 const card = document.createElement('div');
                 card.className = 'list-item-card report-card';
-                card.innerHTML = `
-                    <div class="rank">#${index + 1}</div>
-                    <h3>${prod.nombre}</h3>
-                    <p><strong>Unidades vendidas:</strong> ${prod.cantidad}</p>
-                `;
+                card.innerHTML = `<div class="rank">#${index + 1}</div><h3>${prod.nombre}</h3><p><strong>Unidades vendidas:</strong> ${prod.cantidad}</p>`;
                 reportesList.appendChild(card);
             });
+
         } catch (error) {
             console.error("Error al generar el reporte: ", error);
             reportesList.innerHTML = '<p>Error al cargar el reporte. Revisa la consola.</p>';
         }
     }
 
+    reportesFiltros.addEventListener('click', e => {
+        if (e.target.tagName !== 'BUTTON') return;
 
-    // --- LÓGICA DE LA SECCIÓN DE MEDICAMENTO FALTANTE ---
-    faltanteSearch.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
-        renderFaltanteSearchResults(filtered);
+        document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+
+        const periodo = e.target.dataset.periodo;
+        let fechaInicio = new Date();
+
+        if (periodo === 'semana') {
+            fechaInicio.setDate(fechaInicio.getDate() - 7);
+            generarReporteMasVendidos(fechaInicio);
+        } else if (periodo === 'mes') {
+            fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+            generarReporteMasVendidos(fechaInicio);
+        } else if (periodo === 'siempre') {
+            generarReporteMasVendidos();
+        }
     });
 
-    function renderFaltanteSearchResults(products) {
-        faltanteSearchResults.innerHTML = '';
-        products.slice(0, 50).forEach(product => {
-            const card = document.createElement('div');
-            card.className = 'list-item-card';
-            card.innerHTML = `<h3>${product.nombre}</h3><p>Código: ${product.codigo}</p>`;
-            card.onclick = () => registrarFaltanteInventario(product);
-            faltanteSearchResults.appendChild(card);
-        });
-    }
+    btnFiltrarPeriodo.addEventListener('click', () => {
+        const fechaInicio = new Date(document.getElementById('reporte-fecha-inicio').value);
+        const fechaFin = new Date(document.getElementById('reporte-fecha-fin').value);
+        fechaFin.setHours(23, 59, 59); // Incluir todo el día de fin
+        generarReporteMasVendidos(fechaInicio, fechaFin);
+    });
 
-        async function registrarFaltanteInventario(product) {
-        if (!confirm(`¿Confirmas que el producto "${product.nombre}" está agotado y fue solicitado?`)) return;
+    faltanteManualInput.addEventListener('input', e => {
+        const query = e.target.value.toLowerCase();
+        faltanteManualSugerencias.innerHTML = '';
+        if (query.length < 2) return;
+
+        const sugerencias = faltantesManualesCache.filter(item => item.nombre.toLowerCase().includes(query));
         
-        const faltanteRef = db.collection('faltantes').doc(product.codigo);
+        sugerencias.forEach(item => {
+            const div = document.createElement('div');
+            div.textContent = item.nombre;
+            div.style.padding = '8px';
+            div.style.cursor = 'pointer';
+            div.onmouseover = () => div.style.backgroundColor = '#f0f0f0';
+            div.onmouseout = () => div.style.backgroundColor = 'white';
+            div.onclick = () => {
+                faltanteManualInput.value = item.nombre;
+                faltanteManualSugerencias.innerHTML = '';
+            };
+            faltanteManualSugerencias.appendChild(div);
+        });
+    });
+
+    async function registrarFaltante(docId, nombre, esDeInventario) {
+        const registroRef = db.collection('solicitudes_faltantes').doc(); // Nuevo registro único
+        const faltanteRef = db.collection('faltantes').doc(docId); // Documento para el contador total
+
         try {
             await db.runTransaction(async (transaction) => {
+                // 1. Siempre crea un nuevo registro de la solicitud con su fecha
+                transaction.set(registroRef, { nombre, esDeInventario, fecha: new Date() });
+
+                // 2. Actualiza el contador general del medicamento
                 const doc = await transaction.get(faltanteRef);
                 if (!doc.exists) {
-                    transaction.set(faltanteRef, {
-                        nombre: product.nombre,
-                        esDeInventario: true,
-                        contador: 1,
-                        ultimaSolicitud: new Date()
-                    });
+                    transaction.set(faltanteRef, { nombre, esDeInventario, contador: 1 });
                 } else {
                     const nuevoContador = doc.data().contador + 1;
-                    transaction.update(faltanteRef, {
-                        contador: nuevoContador,
-                        ultimaSolicitud: new Date()
-                    });
+                    transaction.update(faltanteRef, { contador: nuevoContador });
                 }
             });
-            alert(`Registro de faltante para "${product.nombre}" guardado.`);
+            alert(`Registro de faltante para "${nombre}" guardado.`);
+            return true;
         } catch (error) {
             console.error("Error al registrar faltante: ", error);
             alert("Error al guardar el registro.");
+            return false;
         }
     }
 
+    async function registrarFaltanteInventario(product) {
+        if (!confirm(`¿Confirmas que "${product.nombre}" está agotado y fue solicitado?`)) return;
+        await registrarFaltante(product.codigo, product.nombre, true);
+    }
+    
     btnRegistrarFaltanteManual.addEventListener('click', async () => {
         const nombreManual = faltanteManualInput.value.trim();
-        if (nombreManual === '') {
-            alert('Por favor, escribe el nombre del medicamento.');
-            return;
-        }
-
-        // Usamos un ID basado en el nombre normalizado para evitar duplicados
+        if (nombreManual === '') return;
         const docId = nombreManual.toLowerCase().replace(/\s+/g, '-');
-        const faltanteRef = db.collection('faltantes').doc(docId);
-
-        try {
-            await db.runTransaction(async (transaction) => {
-                const doc = await transaction.get(faltanteRef);
-                if (!doc.exists) {
-                    transaction.set(faltanteRef, {
-                        nombre: nombreManual,
-                        esDeInventario: false,
-                        contador: 1,
-                        ultimaSolicitud: new Date()
-                    });
-                } else {
-                    const nuevoContador = doc.data().contador + 1;
-                    transaction.update(faltanteRef, { contador: nuevoContador, ultimaSolicitud: new Date() });
-                }
-            });
-            alert(`Registro de faltante para "${nombreManual}" guardado.`);
+        
+        if (await registrarFaltante(docId, nombreManual, false)) {
             faltanteManualInput.value = '';
-            cargarFaltantesManuales();
-        } catch (error) {
-             console.error("Error al registrar faltante manual: ", error);
-            alert("Error al guardar el registro.");
+            faltanteManualSugerencias.innerHTML = '';
+            cargarYGenerarReporteFaltantes();
         }
     });
 
-    async function cargarFaltantesManuales() {
+    tabManuales.addEventListener('click', () => {
+        tabManuales.classList.add('active');
+        tabInventario.classList.remove('active');
+        faltantesManualesList.style.display = 'block';
+        faltantesInventarioList.style.display = 'none';
+    });
+    tabInventario.addEventListener('click', () => {
+        tabInventario.classList.add('active');
+        tabManuales.classList.remove('active');
+        faltantesInventarioList.style.display = 'block';
+        faltantesManualesList.style.display = 'none';
+    });
+    
+    // NUEVO: Función principal para generar reporte de faltantes con filtros
+    async function generarReporteFaltantes(fechaInicio = null) {
         faltantesManualesList.innerHTML = '<p>Cargando...</p>';
-        try {
-            const querySnapshot = await db.collection('faltantes')
-                .where('esDeInventario', '==', false)
-                .orderBy('ultimaSolicitud', 'desc')
-                .limit(10)
-                .get();
-            
-            faltantesManualesList.innerHTML = '';
-            querySnapshot.forEach(doc => {
-                const data = doc.data();
-                const item = document.createElement('div');
-                item.className = 'item';
-                item.innerHTML = `<span>${data.nombre}</span> <strong>(solicitado ${data.contador} veces)</strong>`;
-                faltantesManualesList.appendChild(item);
-            });
-        } catch (error) {
-            console.error("Error cargando faltantes manuales:", error);
-            faltantesManualesList.innerHTML = '<p>Error al cargar.</p>';
+        faltantesInventarioList.innerHTML = '<p>Cargando...</p>';
+        
+        let query = db.collection('solicitudes_faltantes');
+        if (fechaInicio) {
+            query = query.where('fecha', '>=', fechaInicio);
         }
+
+        const snapshot = await query.get();
+        const conteo = {};
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const id = data.nombre.toLowerCase();
+            if (!conteo[id]) {
+                conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 };
+            }
+            conteo[id].cantidad++;
+        });
+
+        const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad);
+        
+        // Limpiar listas
+        faltantesManualesList.innerHTML = '';
+        faltantesInventarioList.innerHTML = '';
+
+        // Poblar listas
+        sorted.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`;
+            if (item.esDeInventario) {
+                faltantesInventarioList.appendChild(div);
+            } else {
+                faltantesManualesList.appendChild(div);
+            }
+        });
+        if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>';
+        if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>';
+    }
+    
+    // NUEVO: Función que carga el caché para el autocompletado y luego llama al reporte
+    async function cargarYGenerarReporteFaltantes() {
+        // Cargar caché
+        const snapshot = await db.collection('faltantes').where('esDeInventario', '==', false).get();
+        faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+        // Generar reporte
+        generarReporteFaltantes(); 
     }
 
-    // --- Iniciar la aplicación ---
+    faltantesFiltros.addEventListener('click', e => {
+        if (e.target.tagName !== 'BUTTON') return;
+        document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        const periodo = e.target.dataset.periodo;
+        let fechaInicio = new Date();
+        if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7);
+        else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+        else fechaInicio = null; // Siempre
+        
+        generarReporteFaltantes(fechaInicio);
+    });
+
+    btnFaltante.addEventListener('click', () => {
+        showSection(faltanteSection, btnFaltante);
+        renderFaltanteSearchResults(allProducts);
+        cargarYGenerarReporteFaltantes();
+    });
+
     loadData();
 });
-</script>
+</script>   
 </body>
-
 </html>
+
 
