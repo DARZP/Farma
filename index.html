@@ -139,20 +139,24 @@
             </div>
         </div>
 
-        <div id="reportes-section" class="content-section" style="display: none;">
-            <h2>Reporte de Productos Más Vendidos</h2>
-<div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-    <button data-periodo="semana">Esta Semana</button>
-    <button data-periodo="mes">Este Mes</button>
-    <button data-periodo="siempre" class="active">Desde Siempre</button>
+        <div id="reportes-section" class="content-section" style="display: none; flex-direction: column;">
     
-    <span style="border-left: 1px solid #ccc; padding-left: 0.75rem; margin-left: 0.5rem;">Periodo específico:</span>
-    
-    <input type="date" id="reporte-fecha-inicio">
-    <input type="date" id="reporte-fecha-fin">
-    <button id="btn-filtrar-periodo">Filtrar</button>
-</div>
-<div id="reportes-list"></div>
+            <div> 
+                <h2>Reporte de Productos Más Vendidos</h2>
+                <div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <button data-periodo="semana">Esta Semana</button>
+                    <button data-periodo="mes">Este Mes</button>            <button data-periodo="siempre" class="active">Desde Siempre</button>
+                 
+                    <span style="border-left: 1px solid #ccc; padding-left: 0.75rem; margin-left: 0.5rem;">Periodo específico:</span>
+            
+                    <input type="date" id="reporte-fecha-inicio">
+                    <input type="date" id="reporte-fecha-fin">
+                    <button id="btn-filtrar-periodo">Filtrar</button>
+                </div>
+            </div>
+
+            <div id="reportes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+                </div>
         </div>
 
         <div id="faltante-section" class="content-section" style="display: none;">
@@ -2377,6 +2381,7 @@
 </script>   
 </body>
 </html>
+
 
 
 
