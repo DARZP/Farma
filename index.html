@@ -292,7 +292,11 @@
     btnInventario.addEventListener('click', () => showSection(inventarioSection, btnInventario));
     btnVenta.addEventListener('click', () => { showSection(ventaSection, btnVenta); renderVentaSearchResults(allProducts); });
     btnReportes.addEventListener('click', () => { showSection(reportesSection, btnReportes); generarReporteMasVendidos(); });
-    btnFaltante.addEventListener('click', () => { showSection(faltanteSection, btnFaltante); renderFaltanteSearchResults(allProducts); cargarYGenerarReporteFaltantes(); });
+    btnFaltante.addEventListener('click', () => { 
+        showSection(faltanteSection, btnFaltante); 
+        renderFaltanteSearchResults(allProducts); 
+        cargarYGenerarReporteFaltantes(); 
+    });
     
     // NUEVO: Event listener para la nueva pestaña
     btnCompras.addEventListener('click', () => {
@@ -2535,12 +2539,13 @@
                 }
             }
         }
+    loadData();    
     });
-    loadData();     
 });
 </script>   
 </body>
 </html>
+
 
 
 
