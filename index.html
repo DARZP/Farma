@@ -296,13 +296,13 @@
         showSection(faltanteSection, btnFaltante); 
         renderFaltanteSearchResults(allProducts); 
         cargarYGenerarReporteFaltantes(); 
-});
-// AÑADE ESTA LÍNEA
-btnCompras.addEventListener('click', () => {
-    showSection(comprasSection, btnCompras);
-    cargarListaDeCompras();
-        
-    function loadData() {
+    }); // <-- Falta esta llave de cierre
+        // La corrección está aquí
+        btnCompras.addEventListener('click', () => {
+            showSection(comprasSection, btnCompras);
+            cargarListaDeCompras();
+        });
+        function loadData() {
         const miInventario = [
             {
                 clasificacion: "Vitaminas y Suplementos",
@@ -2551,6 +2551,7 @@ btnCompras.addEventListener('click', () => {
 </script>   
 </body>
 </html>
+
 
 
 
