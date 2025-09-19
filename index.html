@@ -296,10 +296,11 @@
         showSection(faltanteSection, btnFaltante); 
         renderFaltanteSearchResults(allProducts); 
         cargarYGenerarReporteFaltantes(); 
-    btnCompras.addEventListener('click', () => {
-        showSection(comprasSection, btnCompras);
-        cargarListaDeCompras();
-    });
+});
+// AÑADE ESTA LÍNEA
+btnCompras.addEventListener('click', () => {
+    showSection(comprasSection, btnCompras);
+    cargarListaDeCompras();
         
     function loadData() {
         const miInventario = [
@@ -2257,16 +2258,18 @@
             return;
         }
         const fechaVenta = new Date();
-        const batch = db.batch();
-        ventaActual.forEach(item => {
-            const ventaRef = db.collection(`ventas_${pharmacyId}`);
-            batch.set(ventaRef, {
-                codigo: item.codigo,
-                nombre: item.nombre,
-                cantidad: item.cantidad,
-                costoProveedor: item.costoProveedor,
-                fecha: fechaVenta
-            });
+    // CORRECCIÓN AQUÍ
+    const batch = db.batch();
+    ventaActual.forEach(item => {
+        // CORRECCIÓN AQUÍ
+        const ventaRef = db.collection(`ventas_${pharmacyId}`).doc(); // Se usa .doc() para autogenerar ID
+        batch.set(ventaRef, {
+            codigo: item.codigo,
+            nombre: item.nombre,
+            cantidad: item.cantidad,
+            costoProveedor: item.costoProveedor,
+            fecha: fechaVenta
+        });
         });
         try {
             await batch.commit();
@@ -2412,14 +2415,19 @@
         faltantesInventarioList.innerHTML = '<p>Cargando...</p>'; 
         let query = db.collection(`solicitudes_faltantes_${pharmacyId}`);                                                         
         if (fechaInicio) { query = query.where('fecha', '>=', fechaInicio); } const snapshot = await query.get(); const conteo = {}; snapshot.forEach(doc => { const data = doc.data(); const id = data.nombre.toLowerCase(); if (!conteo[id]) { conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 }; } conteo[id].cantidad++; }); const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); faltantesManualesList.innerHTML = ''; faltantesInventarioList.innerHTML = ''; sorted.forEach(item => { const div = document.createElement('div'); div.className = 'item'; div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; if (item.esDeInventario) { faltantesInventarioList.appendChild(div); } else { faltantesManualesList.appendChild(div); } }); if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>'; if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>'; }
-    async function cargarYGenerarReporteFaltantes() { const snapshot = await db.collection(\faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get(); faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); generarReporteFaltantes(); }
+    async function cargarYGenerarReporteFaltantes() { 
+        const snapshot = await db.collection(`faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get(); 
+        faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); 
+        generarReporteFaltantes(); 
+    }
     faltantesFiltros.addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') return; document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); const periodo = e.target.dataset.periodo; let fechaInicio = new Date(); if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7); else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1); else fechaInicio = null; generarReporteFaltantes(fechaInicio); });
     loadData();
     async function cargarListaDeCompras() {
         comprasList.innerHTML = '<p>Cargando lista...</p>';
         try {
-            const snapshot = await db.collection(\lista_compras_${pharmacyId}`).orderBy('fechaAgregado', 'desc').get();
-            
+        // CORRECCIÓN AQUÍ
+            const snapshot = await db.collection(`lista_compras_${pharmacyId}`).orderBy('fechaAgregado', 'desc').get();
+        
             comprasList.innerHTML = '';
             if (snapshot.empty) {
                 comprasList.innerHTML = '<p>La lista de compras está vacía.</p>';
@@ -2465,8 +2473,8 @@
     async function agregarACompras(itemData, esManual = false) {
         const docId = esManual ? itemData.nombre.toLowerCase().replace(/\s+/g, '-') : itemData.codigo;
         
-        const itemRef = tion(\lista_compras_${pharmacyId}`).doc(docId);
-        
+        const itemRef = db.collection(`lista_compras_${pharmacyId}`).doc(docId);
+    
         try {
             const doc = await itemRef.get();
             if (doc.exists) {
@@ -2528,8 +2536,9 @@
             const docId = e.target.dataset.id;
             if (confirm("¿Estás seguro de que quieres quitar este producto de la lista?")) {
                 try {
-                    await db.collection(\lista_compras_${pharmacyId}`).doc(docId).delete();
-                    cargarListaDeCompras(); // Refresca la lista
+                    // CORRECCIÓN AQUÍ
+                    await db.collection(`lista_compras_${pharmacyId}`).doc(docId).delete();
+                    cargarListaDeCompras();
                 } catch (error) {
                     console.error("Error al quitar el producto:", error);
                     alert("No se pudo quitar el producto.");
@@ -2542,6 +2551,7 @@
 </script>   
 </body>
 </html>
+
 
 
 
