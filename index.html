@@ -296,9 +296,6 @@
         showSection(faltanteSection, btnFaltante); 
         renderFaltanteSearchResults(allProducts); 
         cargarYGenerarReporteFaltantes(); 
-    });
-    
-    // NUEVO: Event listener para la nueva pestaña
     btnCompras.addEventListener('click', () => {
         showSection(comprasSection, btnCompras);
         cargarListaDeCompras();
@@ -2538,13 +2535,14 @@
                     alert("No se pudo quitar el producto.");
                 }
             }
-        }
-    loadData();    
+        }    
     });
+    loadData();
 });
 </script>   
 </body>
 </html>
+
 
 
 
