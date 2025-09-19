@@ -2376,9 +2376,9 @@
     });
 
     async function registrarFaltante(docId, nombre, esDeInventario) {
-        const registroRef = db.collection(\solicitudes_faltantes_${pharmacyId}`).doc();
-        const faltanteRef = db.collection(\faltantes_${pharmacyId}`);
-        try {
+        const registroRef = db.collection(`solicitudes_faltantes_${pharmacyId}`).doc();
+            const faltanteRef = db.collection(`faltantes_${pharmacyId}`).doc(docId);
+            try {
             await db.runTransaction(async (transaction) => {
                 // 1. PRIMERO HACEMOS LA LECTURA (READ)
                 const doc = await transaction.get(faltanteRef);
@@ -2537,6 +2537,7 @@
 </script>   
 </body>
 </html>
+
 
 
 
