@@ -2413,7 +2413,7 @@
     async function cargarListaDeCompras() {
         comprasList.innerHTML = '<p>Cargando lista...</p>';
         try {
-            const snapshot = await db.collection('lista_compras').orderBy('fechaAgregado', 'desc').get();
+            const snapshot = await db.collection(\lista_compras_${pharmacyId}`).orderBy('fechaAgregado', 'desc').get();
             
             comprasList.innerHTML = '';
             if (snapshot.empty) {
@@ -2537,6 +2537,7 @@
 </script>   
 </body>
 </html>
+
 
 
 
