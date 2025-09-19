@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1024">
-    <title>Inventario Interactivo - Farma Blanca</title>
+    <title>Inventario Interactivo - Farma Bombas</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -232,7 +232,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
+        
     const pharmacyId = 'bombas';
     
     const menuClasificaciones = document.getElementById('menu-clasificaciones');
@@ -292,15 +292,17 @@
     btnInventario.addEventListener('click', () => showSection(inventarioSection, btnInventario));
     btnVenta.addEventListener('click', () => { showSection(ventaSection, btnVenta); renderVentaSearchResults(allProducts); });
     btnReportes.addEventListener('click', () => { showSection(reportesSection, btnReportes); generarReporteMasVendidos(); });
-    btnFaltante.addEventListener('click', () => { showSection(faltanteSection, btnFaltante); renderFaltanteSearchResults(allProducts); cargarYGenerarReporteFaltantes(); });
-    
-    // NUEVO: Event listener para la nueva pestaña
-    btnCompras.addEventListener('click', () => {
-        showSection(comprasSection, btnCompras);
-        cargarListaDeCompras();
-    });
-        
-    function loadData() {
+    btnFaltante.addEventListener('click', () => { 
+        showSection(faltanteSection, btnFaltante); 
+        renderFaltanteSearchResults(allProducts); 
+        cargarYGenerarReporteFaltantes(); 
+    }); // <-- Falta esta llave de cierre
+        // La corrección está aquí
+        btnCompras.addEventListener('click', () => {
+            showSection(comprasSection, btnCompras);
+            cargarListaDeCompras();
+        });
+        function loadData() {
         const miInventario = [
             {
                 clasificacion: "Vitaminas y Suplementos",
@@ -2256,16 +2258,18 @@
             return;
         }
         const fechaVenta = new Date();
-        const batch = db.batch();
-        ventaActual.forEach(item => {
-            const ventaRef = db.collection(\ventas_${pharmacyId}`)`
-            batch.set(ventaRef, {
-                codigo: item.codigo,
-                nombre: item.nombre,
-                cantidad: item.cantidad,
-                costoProveedor: item.costoProveedor,
-                fecha: fechaVenta
-            });
+    // CORRECCIÓN AQUÍ
+    const batch = db.batch();
+    ventaActual.forEach(item => {
+        // CORRECCIÓN AQUÍ
+        const ventaRef = db.collection(`ventas_${pharmacyId}`).doc(); // Se usa .doc() para autogenerar ID
+        batch.set(ventaRef, {
+            codigo: item.codigo,
+            nombre: item.nombre,
+            cantidad: item.cantidad,
+            costoProveedor: item.costoProveedor,
+            fecha: fechaVenta
+        });
         });
         try {
             await batch.commit();
@@ -2281,7 +2285,7 @@
     async function generarReporteMasVendidos(fechaInicio = null, fechaFin = null) {
         reportesList.innerHTML = '<p>Cargando reporte...</p>';
         try {
-            let query = db.collection(\ventas_${pharmacyId}`)`
+            let query = db.collection(`ventas_${pharmacyId}`);
             if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
             if (fechaFin) query = query.where('fecha', '<=', fechaFin);
 
@@ -2376,9 +2380,9 @@
     });
 
     async function registrarFaltante(docId, nombre, esDeInventario) {
-        const registroRef = db.collection(\solicitudes_faltantes_${pharmacyId}`)`
-        const faltanteRef = db.collection(\faltantes_${pharmacyId}`)`
-        try {
+        const registroRef = db.collection(`solicitudes_faltantes_${pharmacyId}`).doc();
+            const faltanteRef = db.collection(`faltantes_${pharmacyId}`).doc(docId);
+            try {
             await db.runTransaction(async (transaction) => {
                 // 1. PRIMERO HACEMOS LA LECTURA (READ)
                 const doc = await transaction.get(faltanteRef);
@@ -2406,15 +2410,24 @@
     btnRegistrarFaltanteManual.addEventListener('click', async () => { const nombreManual = faltanteManualInput.value.trim(); if (nombreManual === '') return; const docId = nombreManual.toLowerCase().replace(/\s+/g, '-'); if (await registrarFaltante(docId, nombreManual, false)) { faltanteManualInput.value = ''; faltanteManualSugerencias.innerHTML = ''; cargarYGenerarReporteFaltantes(); } });
     tabManuales.addEventListener('click', () => { tabManuales.classList.add('active'); tabInventario.classList.remove('active'); tabManuales.style.background = '#eee'; tabInventario.style.background = 'transparent'; faltantesManualesList.style.display = 'block'; faltantesInventarioList.style.display = 'none'; });
     tabInventario.addEventListener('click', () => { tabInventario.classList.add('active'); tabManuales.classList.remove('active'); tabInventario.style.background = '#eee'; tabManuales.style.background = 'transparent'; faltantesInventarioList.style.display = 'block'; faltantesManualesList.style.display = 'none'; });
-    async function generarReporteFaltantes(fechaInicio = null) { faltantesManualesList.innerHTML = '<p>Cargando...</p>'; faltantesInventarioList.innerHTML = '<p>Cargando...</p>'; let query = db.collection(\solicitudes_faltantes_${pharmacyId}`)`; if (fechaInicio) { query = query.where('fecha', '>=', fechaInicio); } const snapshot = await query.get(); const conteo = {}; snapshot.forEach(doc => { const data = doc.data(); const id = data.nombre.toLowerCase(); if (!conteo[id]) { conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 }; } conteo[id].cantidad++; }); const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); faltantesManualesList.innerHTML = ''; faltantesInventarioList.innerHTML = ''; sorted.forEach(item => { const div = document.createElement('div'); div.className = 'item'; div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; if (item.esDeInventario) { faltantesInventarioList.appendChild(div); } else { faltantesManualesList.appendChild(div); } }); if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>'; if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>'; }
-    async function cargarYGenerarReporteFaltantes() { const snapshot = await db.collection(\faltantes_${pharmacyId}`)`.where('esDeInventario', '==', false).get(); faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); generarReporteFaltantes(); }
+    async function generarReporteFaltantes(fechaInicio = null) { 
+        faltantesManualesList.innerHTML = '<p>Cargando...</p>'; 
+        faltantesInventarioList.innerHTML = '<p>Cargando...</p>'; 
+        let query = db.collection(`solicitudes_faltantes_${pharmacyId}`);                                                         
+        if (fechaInicio) { query = query.where('fecha', '>=', fechaInicio); } const snapshot = await query.get(); const conteo = {}; snapshot.forEach(doc => { const data = doc.data(); const id = data.nombre.toLowerCase(); if (!conteo[id]) { conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 }; } conteo[id].cantidad++; }); const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); faltantesManualesList.innerHTML = ''; faltantesInventarioList.innerHTML = ''; sorted.forEach(item => { const div = document.createElement('div'); div.className = 'item'; div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; if (item.esDeInventario) { faltantesInventarioList.appendChild(div); } else { faltantesManualesList.appendChild(div); } }); if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>'; if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>'; }
+    async function cargarYGenerarReporteFaltantes() { 
+        const snapshot = await db.collection(`faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get(); 
+        faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); 
+        generarReporteFaltantes(); 
+    }
     faltantesFiltros.addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') return; document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); const periodo = e.target.dataset.periodo; let fechaInicio = new Date(); if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7); else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1); else fechaInicio = null; generarReporteFaltantes(fechaInicio); });
     loadData();
     async function cargarListaDeCompras() {
         comprasList.innerHTML = '<p>Cargando lista...</p>';
         try {
-            const snapshot = await db.collection('lista_compras').orderBy('fechaAgregado', 'desc').get();
-            
+        // CORRECCIÓN AQUÍ
+            const snapshot = await db.collection(`lista_compras_${pharmacyId}`).orderBy('fechaAgregado', 'desc').get();
+        
             comprasList.innerHTML = '';
             if (snapshot.empty) {
                 comprasList.innerHTML = '<p>La lista de compras está vacía.</p>';
@@ -2460,8 +2473,8 @@
     async function agregarACompras(itemData, esManual = false) {
         const docId = esManual ? itemData.nombre.toLowerCase().replace(/\s+/g, '-') : itemData.codigo;
         
-        const itemRef = db.collection(\lista_compras_${pharmacyId}`)`.doc(docId);
-        
+        const itemRef = db.collection(`lista_compras_${pharmacyId}`).doc(docId);
+    
         try {
             const doc = await itemRef.get();
             if (doc.exists) {
@@ -2523,20 +2536,31 @@
             const docId = e.target.dataset.id;
             if (confirm("¿Estás seguro de que quieres quitar este producto de la lista?")) {
                 try {
-                    await db.collection(\lista_compras_${pharmacyId}`)`.doc(docId).delete();
-                    cargarListaDeCompras(); // Refresca la lista
+                    // CORRECCIÓN AQUÍ
+                    await db.collection(`lista_compras_${pharmacyId}`).doc(docId).delete();
+                    cargarListaDeCompras();
                 } catch (error) {
                     console.error("Error al quitar el producto:", error);
                     alert("No se pudo quitar el producto.");
                 }
             }
-        }
+        }    
     });
-    loadData();     
+    loadData();
 });
 </script>   
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
 
 
 
