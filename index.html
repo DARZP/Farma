@@ -3952,10 +3952,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- MÓDULO DE REPORTES ---
     async function generarReporteMasVendidos(fechaInicio = null, fechaFin = null) {
         reportesList.innerHTML = '<p>Cargando reporte...</p>';
         try {
-            let query = db.collection(`ventas_${pharmacyId}`);
+            let query = db.collection(`ventas_${pharmacyId}`).orderBy('fecha', 'desc');
             if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
             if (fechaFin) query = query.where('fecha', '<=', fechaFin);
 
@@ -3989,26 +3990,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     reportesFiltros.addEventListener('click', e => {
-    if (e.target.tagName !== 'BUTTON' || e.target.id === 'btn-filtrar-periodo') return;
-    document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
-    e.target.classList.add('active');
-    
-    const periodo = e.target.dataset.periodo;
-    let fechaInicio = new Date();
-    let fechaFin = null; // <- Añade esta línea
+        if (e.target.tagName !== 'BUTTON' || e.target.id === 'btn-filtrar-periodo') return;
+        document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        const periodo = e.target.dataset.periodo;
+        let fechaInicio = new Date();
+        let fechaFin = null;
 
-    if (periodo === 'hoy') { // <- Añade este bloque 'if'
-        fechaInicio.setHours(0, 0, 0, 0);
-        fechaFin = new Date();
-        fechaFin.setHours(23, 59, 59, 999);
-    } else if (periodo === 'semana') {
-        fechaInicio.setDate(fechaInicio.getDate() - 7);
-    } else if (periodo === 'mes') {
-        fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-    } else { // 'siempre'
-        fechaInicio = null;
-    }
-
+        if (periodo === 'hoy') {
+            fechaInicio.setHours(0, 0, 0, 0);
+            fechaFin = new Date();
+            fechaFin.setHours(23, 59, 59, 999);
+        } else if (periodo === 'semana') {
+            fechaInicio.setDate(fechaInicio.getDate() - 7);
+        } else if (periodo === 'mes') {
+            fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+        } else { // 'siempre'
+            fechaInicio = null;
+        }
+        
+        generarReporteMasVendidos(fechaInicio, fechaFin);
+    });
 
     btnFiltrarPeriodo.addEventListener('click', () => {
         const fechaInicioStr = document.getElementById('reporte-fecha-inicio').value;
@@ -4019,7 +4022,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
         const fechaFin = new Date(fechaFinStr + 'T23:59:59');
-        generarReporteMasVendidos(fechaInicio, fechaFin); 
+        generarReporteMasVendidos(fechaInicio, fechaFin);
     });
 
     // Nueva función para renderizar la lista de bajo stock
@@ -4360,6 +4363,7 @@ document.getElementById('faltantes-stock-filtros').addEventListener('click', e =
 </script>   
 </body>
 </html>
+
 
 
 
