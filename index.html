@@ -95,6 +95,18 @@
     .report-card { grid-column: span 1; padding: 1.5rem; }
     .report-card .rank { font-size: 2rem; font-weight: bold; color: var(--primary-blue); }
     #faltante-manual-input { width: calc(100% - 1rem); padding: 0.5rem; margin-top: 1rem; }
+
+    .filtro-stock {
+    padding: 0.25rem 0.75rem;
+    border: 2px solid transparent;
+    border-radius: 15px;
+    cursor: pointer;
+    line-height: 20px; /* Para alinear el texto de "Todos" */
+}
+.filtro-stock.active {
+    border-color: var(--primary-blue);
+    font-weight: bold;
+}
     </style>
 </head>
 <body>
@@ -146,6 +158,7 @@
             <div> 
                 <h2>Reporte de Productos Más Vendidos</h2>
                 <div id="reportes-filtros" style="margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <button data-periodo="hoy">Hoy</button>
                     <button data-periodo="semana">Esta Semana</button>
                     <button data-periodo="mes">Este Mes</button>            <button data-periodo="siempre" class="active">Desde Siempre</button>
                  
@@ -166,8 +179,16 @@
                  <div class="faltante-main">
                      <h2>Medicamentos con Bajo Inventario</h2>
                      <p>Estos productos tienen 4 unidades o menos. Agrégalos a la lista de compras si es necesario.</p>
-                     <div id="faltantes-con-stock-list" style="max-height: 60vh; overflow-y: auto;"></div>
-                 </div>
+                     
+                     <div id="faltantes-stock-filtros" style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; cursor: pointer; background-color: #fff; padding: 0.5rem; border-radius: 8px;">
+                         <span>Filtrar:</span>
+                         <span data-filtro="todos" class="filtro-stock active">Todos</span>
+                         <span data-filtro="rojo" class="filtro-stock" style="background-color: red; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #333; display:inline-block;" title="Agotado (0)"></span>
+                         <span data-filtro="naranja" class="filtro-stock" style="background-color: orange; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #333; display:inline-block;" title="1 a 2 unidades"></span>
+                         <span data-filtro="amarillo" class="filtro-stock" style="background-color: yellow; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #333; display:inline-block;" title="3 a 4 unidades"></span>
+                     </div>
+
+                     <div id="faltantes-con-stock-list" style="max-height: 60vh; overflow-y: auto;"></div></div>
                  <div class="faltante-sidebar">
                      <h3>Registro Manual (No en inventario)</h3>
                      <p>Escribe el nombre del medicamento. Si ya existe, aparecerá para que lo selecciones.</p>
@@ -3968,16 +3989,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     reportesFiltros.addEventListener('click', e => {
-        if (e.target.tagName !== 'BUTTON' || e.target.id === 'btn-filtrar-periodo') return;
-        document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
-        e.target.classList.add('active');
-        const periodo = e.target.dataset.periodo;
-        let fechaInicio = new Date();
-        if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7);
-        else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-        else fechaInicio = null;
-        generarReporteMasVendidos(fechaInicio);
-    });
+    if (e.target.tagName !== 'BUTTON' || e.target.id === 'btn-filtrar-periodo') return;
+    document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
+    e.target.classList.add('active');
+    
+    const periodo = e.target.dataset.periodo;
+    let fechaInicio = new Date();
+    let fechaFin = null; // <- Añade esta línea
+
+    if (periodo === 'hoy') { // <- Añade este bloque 'if'
+        fechaInicio.setHours(0, 0, 0, 0);
+        fechaFin = new Date();
+        fechaFin.setHours(23, 59, 59, 999);
+    } else if (periodo === 'semana') {
+        fechaInicio.setDate(fechaInicio.getDate() - 7);
+    } else if (periodo === 'mes') {
+        fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+    } else { // 'siempre'
+        fechaInicio = null;
+    }
 
 
     btnFiltrarPeriodo.addEventListener('click', () => {
@@ -3989,36 +4019,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
         const fechaFin = new Date(fechaFinStr + 'T23:59:59');
-        generarReporteMasVendidos(fechaInicio, fechaFin);
+        generarReporteMasVendidos(fechaInicio, fechaFin); 
     });
 
-    function renderFaltantesConStockList() {
-        const container = document.getElementById('faltantes-con-stock-list');
-        container.innerHTML = '';
-        const productosBajos = allProducts
-            .filter(p => p.unidades <= 4)
-            .sort((a, b) => a.unidades - b.unidades);
-
-        if (productosBajos.length === 0) {
-            container.innerHTML = '<p>No hay productos con bajo inventario.</p>';
-            return;
-        }
-
-        productosBajos.forEach(product => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'list-item-card';
-            itemDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                    <div style="flex-grow: 1;">
-                        <h3>${getStatusIndicatorHTML(product.unidades)} ${product.nombre}</h3>
-                        <p>Disponibles: ${product.unidades} | Código: ${product.codigo}</p>
-                    </div>
-                    <button class="btn-agregar-compra-faltante" data-codigo="${product.codigo}" style="padding: 0.5rem 1rem; cursor: pointer;">Añadir a Compras</button>
-                </div>
-            `;
-            container.appendChild(itemDiv);
-        });
+    // Nueva función para renderizar la lista de bajo stock
+function renderFaltantesConStockList(filtro = 'todos') {
+    const container = document.getElementById('faltantes-con-stock-list');
+    container.innerHTML = '';
+    
+    let productosFiltrados = [];
+    if (filtro === 'todos') {
+        productosFiltrados = allProducts.filter(p => p.unidades <= 4);
+    } else if (filtro === 'rojo') {
+        productosFiltrados = allProducts.filter(p => p.unidades === 0);
+    } else if (filtro === 'naranja') {
+        productosFiltrados = allProducts.filter(p => p.unidades >= 1 && p.unidades <= 2);
+    } else if (filtro === 'amarillo') {
+        productosFiltrados = allProducts.filter(p => p.unidades >= 3 && p.unidades <= 4);
     }
+
+    const productosBajos = productosFiltrados.sort((a, b) => a.unidades - b.unidades);
+
+    if (productosBajos.length === 0) {
+        container.innerHTML = '<p>No hay productos con este nivel de inventario.</p>';
+        return;
+    }
+
+    productosBajos.forEach(product => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'list-item-card';
+        itemDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                <div style="flex-grow: 1;">
+                    <h3>${getStatusIndicatorHTML(product.unidades)} ${product.nombre}</h3>
+                    <p>Disponibles: ${product.unidades} | Código: ${product.codigo}</p>
+                </div>
+                <button class="btn-agregar-compra-faltante" data-codigo="${product.codigo}" style="padding: 0.5rem 1rem; cursor: pointer;">Añadir a Compras</button>
+            </div>`;
+        container.appendChild(itemDiv);
+    });
+}
+
+// Nuevo Event Listener para los filtros de color
+document.getElementById('faltantes-stock-filtros').addEventListener('click', e => {
+    const filtroTarget = e.target.closest('[data-filtro]');
+    if (filtroTarget) {
+        document.querySelectorAll('.filtro-stock').forEach(el => el.classList.remove('active'));
+        filtroTarget.classList.add('active');
+        const filtro = filtroTarget.dataset.filtro;
+        renderFaltantesConStockList(filtro);
+    }
+});
 
     document.getElementById('faltantes-con-stock-list').addEventListener('click', async e => {
         if (e.target.classList.contains('btn-agregar-compra-faltante')) {
@@ -4296,10 +4347,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnVenta.addEventListener('click', () => { showSection(ventaSection, btnVenta); renderVentaSearchResults(allProducts); });
     btnReportes.addEventListener('click', () => { showSection(reportesSection, btnReportes); generarReporteMasVendidos(); });
     btnFaltante.addEventListener('click', () => { 
-        showSection(faltanteSection, btnFaltante); 
-        renderFaltantesConStockList();
-        cargarYGenerarReporteFaltantes(); 
-    });
+    showSection(faltanteSection, btnFaltante); 
+    renderFaltantesConStockList(); 
+    cargarYGenerarReporteFaltantes(); 
+});
     btnCompras.addEventListener('click', () => {
         showSection(comprasSection, btnCompras);
         cargarListaDeCompras();
@@ -4309,6 +4360,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>   
 </body>
 </html>
+
 
 
 
