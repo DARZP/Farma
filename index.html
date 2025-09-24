@@ -208,12 +208,9 @@
                          <button data-periodo="mes">Mes</button>   
                          <button data-periodo="siempre" class="active">Siempre</button>
                      </div>
-                     <div class="tabs" style="display: flex; border-bottom: 2px solid #ccc; margin-bottom: 1rem;">
-                         <button id="tab-manuales" class="active" style="padding: 0.5rem 1rem; border: none; background: #eee;">Manuales</button>
-                         <button id="tab-inventario" style="padding: 0.5rem 1rem; border: none; background: transparent;">Del Inventario</button>
-                     </div>
+                     
                      <div id="faltantes-manuales-list"></div>
-                     <div id="faltantes-inventario-list" style="display: none;"></div>
+    
                  </div>
              </div>
         </div>
@@ -4157,55 +4154,43 @@ document.getElementById('faltantesStockSearch').addEventListener('input', (e) =>
         } 
     });
 
-    tabManuales.addEventListener('click', () => { 
-        tabManuales.classList.add('active'); 
-        tabInventario.classList.remove('active'); 
-        tabManuales.style.background = '#eee'; 
-        tabInventario.style.background = 'transparent'; 
-        faltantesManualesList.style.display = 'block'; 
-        faltantesInventarioList.style.display = 'none'; 
-    });
-
-    tabInventario.addEventListener('click', () => { 
-        tabInventario.classList.add('active'); 
-        tabManuales.classList.remove('active'); 
-        tabInventario.style.background = '#eee'; 
-        tabManuales.style.background = 'transparent'; 
-        faltantesInventarioList.style.display = 'block'; 
-        faltantesManualesList.style.display = 'none'; 
-    });
-
-    async function generarReporteFaltantes(fechaInicio = null) { 
-        faltantesManualesList.innerHTML = '<p>Cargando...</p>'; 
-        faltantesInventarioList.innerHTML = '<p>Cargando...</p>'; 
-        let query = db.collection(`solicitudes_faltantes_${pharmacyId}`);                                                         
-        if (fechaInicio) { query = query.where('fecha', '>=', fechaInicio); } 
-        const snapshot = await query.get(); 
-        const conteo = {}; 
-        snapshot.forEach(doc => { 
-            const data = doc.data(); 
-            const id = data.nombre.toLowerCase(); 
-            if (!conteo[id]) { 
-                conteo[id] = { nombre: data.nombre, esDeInventario: data.esDeInventario, cantidad: 0 }; 
-            } 
-            conteo[id].cantidad++; 
-        }); 
-        const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); 
-        faltantesManualesList.innerHTML = ''; 
-        faltantesInventarioList.innerHTML = ''; 
-        sorted.forEach(item => { 
-            const div = document.createElement('div'); 
-            div.className = 'item'; 
-            div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; 
-            if (item.esDeInventario) { 
-                faltantesInventarioList.appendChild(div); 
-            } else { 
-                faltantesManualesList.appendChild(div); 
-            } 
-        }); 
-        if (faltantesManualesList.innerHTML === '') faltantesManualesList.innerHTML = '<p>Sin datos para este periodo.</p>'; 
-        if (faltantesInventarioList.innerHTML === '') faltantesInventarioList.innerHTML = '<p>Sin datos para este periodo.</p>'; 
+async function generarReporteFaltantes(fechaInicio = null) { 
+    faltantesManualesList.innerHTML = '<p>Cargando...</p>'; 
+    
+    let query = db.collection(`solicitudes_faltantes_${pharmacyId}`)
+                  .where('esDeInventario', '==', false); // <-- Filtra para mostrar solo manuales
+                                                     
+    if (fechaInicio) { 
+        query = query.where('fecha', '>=', fechaInicio); 
+    } 
+    
+    const snapshot = await query.get(); 
+    const conteo = {}; 
+    
+    snapshot.forEach(doc => { 
+        const data = doc.data(); 
+        const id = data.nombre.toLowerCase(); 
+        if (!conteo[id]) { 
+            conteo[id] = { nombre: data.nombre, cantidad: 0 }; 
+        } 
+        conteo[id].cantidad++; 
+    }); 
+    
+    const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); 
+    faltantesManualesList.innerHTML = ''; 
+    
+    if (sorted.length === 0) {
+        faltantesManualesList.innerHTML = '<p>No hay faltantes manuales registrados para este periodo.</p>';
+        return;
     }
+
+    sorted.forEach(item => { 
+        const div = document.createElement('div'); 
+        div.className = 'item'; 
+        div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; 
+        faltantesManualesList.appendChild(div);
+    }); 
+}
 
     async function cargarYGenerarReporteFaltantes() { 
         const snapshot = await db.collection(`faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get(); 
@@ -4377,6 +4362,7 @@ document.getElementById('faltantesStockSearch').addEventListener('input', (e) =>
 </script>   
 </body>
 </html>
+
 
 
 
