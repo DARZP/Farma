@@ -104,6 +104,15 @@
         border-left: 5px solid var(--primary-green); border-radius: 4px;
     }
     .suggested-price strong { font-size: 1.2rem; color: var(--primary-green); }
+
+    #faltantes-manuales-list {
+    max-height: 250px; /* Altura máxima antes de mostrar scroll */
+    overflow-y: auto;  /* Muestra scrollbar vertical si el contenido excede la altura */
+    padding-right: 10px; /* Espacio para que el scrollbar no tape el texto */
+    border-top: 1px solid #eee; /* Línea divisoria superior */
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
     /* Estilos para secciones nuevas */
     .venta-container, .faltante-container { display: flex; gap: 2rem; }
     .venta-main, .faltante-main { flex: 3; }
@@ -137,12 +146,13 @@
     <header>
         
         <div id="vendedor-selector-container">
-            <label for="vendedor-selector">Vendedor:</label>
+            <label for="vendedor-selector">Usuario:</label>
             <select id="vendedor-selector">
                 <option value="">-- Seleccionar --</option>
-                <option value="Ana">Ana</option>
-                <option value="Luis">Luis</option>
-                <option value="Maria">Maria</option>
+                <option value="Diana">Diana</option>
+                <option value="Nataly">Nataly</option>
+                <option value="Tomas">Tomas</option>
+                <option value="Jeovani">Jeovani</option>
                 </select>
         </div>
         
@@ -4005,7 +4015,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (!vendedorActual) {
-            alert('Por favor, selecciona un vendedor antes de registrar la venta.');
+            alert('Por favor, selecciona un usuario antes de registrar la venta.');
             return;
         }
         const fechaVenta = new Date();
@@ -4061,106 +4071,82 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeChild(link);
         }
     }
+
     btnGenerarReporte.addEventListener('click', async () => {
-        btnGenerarReporte.textContent = 'Generando...';
-        btnGenerarReporte.disabled = true;
-        let fechaInicio = null;
-        let fechaFin = null;
-        const activeFilter = document.querySelector('#reportes-filtros button.active');
-        if (activeFilter && activeFilter.dataset.periodo) {
-            const periodo = activeFilter.dataset.periodo;
-            if (periodo !== 'siempre') {
-                fechaInicio = new Date();
-                fechaFin = new Date();
-                fechaFin.setHours(23, 59, 59, 999);
-                if (periodo === 'hoy') {
-                    fechaInicio.setHours(0, 0, 0, 0);
-                } else if (periodo === 'semana') {
-                    fechaInicio.setDate(fechaInicio.getDate() - 7);
-                    fechaInicio.setHours(0, 0, 0, 0);
-                } else if (periodo === 'mes') {
-                    fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-                    fechaInicio.setHours(0, 0, 0, 0);
-                }
-            }
-        } else {
-            const fechaInicioStr = document.getElementById('reporte-fecha-inicio').value;
-            const fechaFinStr = document.getElementById('reporte-fecha-fin').value;
-            if (fechaInicioStr && fechaFinStr) {
-                fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
-                fechaFin = new Date(fechaFinStr + 'T23:59:59');
+    btnGenerarReporte.textContent = 'Generando...';
+    btnGenerarReporte.disabled = true;
+
+    // Lógica para obtener el rango de fechas (no cambia)
+    let fechaInicio = null;
+    let fechaFin = null;
+    const activeFilter = document.querySelector('#reportes-filtros button.active');
+    if (activeFilter && activeFilter.dataset.periodo) {
+        const periodo = activeFilter.dataset.periodo;
+        if (periodo !== 'siempre') {
+            fechaInicio = new Date();
+            fechaFin = new Date();
+            fechaFin.setHours(23, 59, 59, 999);
+            if (periodo === 'hoy') {
+                fechaInicio.setHours(0, 0, 0, 0);
+            } else if (periodo === 'semana') {
+                fechaInicio.setDate(fechaInicio.getDate() - 7);
+                fechaInicio.setHours(0, 0, 0, 0);
+            } else if (periodo === 'mes') {
+                fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+                fechaInicio.setHours(0, 0, 0, 0);
             }
         }
-        try {
-            let query = db.collection(`ventas_${pharmacyId}`).orderBy('fecha', 'desc');
-            if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
-            if (fechaFin) query = query.where('fecha', '<=', fechaFin);
-            const snapshot = await query.get();
-            if (snapshot.empty) {
-                alert('No hay ventas en el período seleccionado para generar un reporte.');
-                btnGenerarReporte.textContent = 'Descargar Reporte de Ventas (CSV)';
-                btnGenerarReporte.disabled = false;
-                return;
-            }
-            let ventasDetalladas = [];
-            const resumenPorVendedor = {};
-            snapshot.forEach(doc => {
-                const venta = doc.data();
-                const producto = allProducts.find(p => p.codigo === venta.codigo) || {
-                    competencia: [],
-                    costoProveedor: venta.costoProveedor
-                };
-                let precioSugerido = 0;
-                if (producto.competencia && producto.competencia.length > 0) {
-                    const avgPrice = producto.competencia.reduce((a, b) => a + b.precio, 0) / producto.competencia.length;
-                    precioSugerido = avgPrice * 0.98;
-                }
-                const ventaTotalEstimada = precioSugerido * venta.cantidad;
-                const beneficioEstimado = (precioSugerido - venta.costoProveedor) * venta.cantidad;
-                const vendedor = venta.vendedor || 'No Registrado';
-                ventasDetalladas.push({
-                    fecha: venta.fecha.toDate().toLocaleString('es-MX'),
-                    vendedor: vendedor,
-                    producto: `"${venta.nombre.replace(/"/g, '""')}"`,
-                    cantidad: venta.cantidad,
-                    costoUnitario: venta.costoProveedor.toFixed(2),
-                    precioSugeridoUnitario: precioSugerido > 0 ? precioSugerido.toFixed(2) : 'N/D',
-                    ventaTotalEstimada: ventaTotalEstimada > 0 ? ventaTotalEstimada.toFixed(2) : 'N/D',
-                    beneficioEstimado: beneficioEstimado > 0 ? beneficioEstimado.toFixed(2) : 'N/D'
-                });
-                if (!resumenPorVendedor[vendedor]) {
-                    resumenPorVendedor[vendedor] = {
-                        totalArticulos: 0,
-                        totalVenta: 0,
-                        totalBeneficio: 0
-                    };
-                }
-                resumenPorVendedor[vendedor].totalArticulos += venta.cantidad;
-                resumenPorVendedor[vendedor].totalVenta += ventaTotalEstimada > 0 ? ventaTotalEstimada : 0;
-                resumenPorVendedor[vendedor].totalBeneficio += beneficioEstimado > 0 ? beneficioEstimado : 0;
-            });
-            let csv = 'Resumen de Ventas por Vendedor\n';
-            csv += 'Vendedor,Total Artículos,Venta Total Estimada,Beneficio Total Estimado\n';
-            for (const vendedor in resumenPorVendedor) {
-                const resumen = resumenPorVendedor[vendedor];
-                csv += `${vendedor},${resumen.totalArticulos},${resumen.totalVenta.toFixed(2)},${resumen.totalBeneficio.toFixed(2)}\n`;
-            }
-            csv += '\n\nDetalle de Ventas\n';
-            const headers = Object.keys(ventasDetalladas[0]);
-            csv += headers.join(',') + '\n';
-            ventasDetalladas.forEach(row => {
-                csv += headers.map(header => row[header]).join(',') + '\n';
-            });
-            const fechaHoy = new Date().toISOString().slice(0, 10);
-            downloadCSV(csv, `Reporte_Ventas_${pharmacyId.toUpperCase()}_${fechaHoy}.csv`);
-        } catch (error) {
-            console.error("Error al generar el reporte CSV: ", error);
-            alert("Hubo un error al generar el reporte.");
-        } finally {
+    } else {
+        const fechaInicioStr = document.getElementById('reporte-fecha-inicio').value;
+        const fechaFinStr = document.getElementById('reporte-fecha-fin').value;
+        if (fechaInicioStr && fechaFinStr) {
+            fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
+            fechaFin = new Date(fechaFinStr + 'T23:59:59');
+        }
+    }
+
+    try {
+        let query = db.collection(`ventas_${pharmacyId}`).orderBy('fecha', 'desc');
+        if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
+        if (fechaFin) query = query.where('fecha', '<=', fechaFin);
+        const snapshot = await query.get();
+
+        if (snapshot.empty) {
+            alert('No hay ventas en el período seleccionado para generar un reporte.');
             btnGenerarReporte.textContent = 'Descargar Reporte de Ventas (CSV)';
             btnGenerarReporte.disabled = false;
+            return;
         }
-    });
+
+        // --- INICIO DE CAMBIOS ---
+        // CAMBIO 1: Se elimina "Codigo" de los encabezados.
+        let csv = 'Fecha,Vendedor,Producto,Cantidad\n';
+
+        snapshot.forEach(doc => {
+            const venta = doc.data();
+            // CAMBIO 2: Se quitan "hour" y "minute" para que solo muestre la fecha.
+            const fechaFormateada = venta.fecha.toDate().toLocaleString('es-MX', {
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            });
+            const vendedor = venta.vendedor || 'No Registrado';
+            const productoNombre = `"${venta.nombre.replace(/"/g, '""')}"`;
+            
+            // CAMBIO 3: Se elimina "venta.codigo" de la fila.
+            csv += `${fechaFormateada},${vendedor},${productoNombre},${venta.cantidad}\n`;
+        });
+        // --- FIN DE CAMBIOS ---
+
+        const fechaHoy = new Date().toISOString().slice(0, 10);
+        downloadCSV(csv, `Reporte_Ventas_${pharmacyId.toUpperCase()}_${fechaHoy}.csv`);
+
+    } catch (error) {
+        console.error("Error al generar el reporte CSV: ", error);
+        alert("Hubo un error al generar el reporte.");
+    } finally {
+        btnGenerarReporte.textContent = 'Descargar Reporte de Ventas (CSV)';
+        btnGenerarReporte.disabled = false;
+    }
+});
 
     function getStatusIndicatorHTML(unidades) {
         let color = 'green';
@@ -4560,11 +4546,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         sorted.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`;
-            faltantesManualesList.appendChild(div);
-        });
+    const div = document.createElement('div');
+    div.className = 'item';
+    // --- INICIO DEL CAMBIO ---
+    // Usamos flexbox para alinear el contenido en dos columnas
+    div.style.display = 'flex';
+    div.style.justifyContent = 'space-between'; // Alinea los elementos a los extremos
+    div.style.padding = '0.25rem 0'; // Añade un poco de espacio vertical
+
+    // Creamos un span para el nombre y otro para la cantidad
+    const nombreSpan = document.createElement('span');
+    nombreSpan.textContent = item.nombre;
+    nombreSpan.style.marginRight = '1rem'; // Espacio para que no se peguen
+
+    const cantidadStrong = document.createElement('strong');
+    cantidadStrong.textContent = `(${item.cantidad} ${item.cantidad === 1 ? 'vez' : 'veces'})`;
+
+    // Añadimos los elementos al div principal
+    div.appendChild(nombreSpan);
+    div.appendChild(cantidadStrong);
+    // --- FIN DEL CAMBIO ---
+    faltantesManualesList.appendChild(div);
+});
     }
     async function cargarYGenerarReporteFaltantes() {
         const snapshot = await db.collection(`faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get();
@@ -4731,6 +4734,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>    
 </body>
 </html>
-
-
-
