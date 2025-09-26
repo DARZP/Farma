@@ -24,8 +24,32 @@
     header {
         background: linear-gradient(90deg, var(--primary-blue), var(--primary-green)); color: var(--white);
         padding: 1rem 2rem; box-shadow: var(--shadow);
+        position: relative; /* Para posicionar el selector de vendedor */
     }
     header h1, header p { text-align: center; margin: 0; }
+
+    #vendedor-selector-container {
+        position: absolute;
+        top: 10px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 8px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+    }
+    #vendedor-selector-container label {
+        font-size: 0.8rem;
+        margin-bottom: 4px;
+        font-weight: bold;
+    }
+    #vendedor-selector {
+        padding: 5px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        background-color: var(--white);
+    }
+
     nav#main-menu {
         display: flex; justify-content: center; gap: 1rem; background-color: transparent; padding: 0.5rem;
     }
@@ -112,6 +136,16 @@
 <body>
     <header>
         
+        <div id="vendedor-selector-container">
+            <label for="vendedor-selector">Vendedor:</label>
+            <select id="vendedor-selector">
+                <option value="">-- Seleccionar --</option>
+                <option value="Ana">Ana</option>
+                <option value="Luis">Luis</option>
+                <option value="Maria">Maria</option>
+                </select>
+        </div>
+        
         <h1>Farma Blanca CEDROS</h1>
         <p>Análisis de Inventario y Competencia</p>
         <nav id="main-menu">
@@ -168,8 +202,11 @@
                     <input type="date" id="reporte-fecha-fin">
                     <button id="btn-filtrar-periodo">Filtrar</button>
                 </div>
+                <button id="btn-generar-reporte" class="action-button" style="width: auto; padding: 0.75rem 1.5rem; margin-top: 1rem; align-self: flex-start;">
+                    Descargar Reporte de Ventas (CSV)
+                </button>
             </div>
-
+            
             <div id="reportes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
                 </div>
         </div>
@@ -1828,10 +1865,6 @@ document.addEventListener('DOMContentLoaded', () => {
 "7501008499177": 1,
 "7501065095718": 2,
 "7501065095978": 1,
-
-
-
-
     };
 
     const miInventario = [
@@ -3921,7 +3954,8 @@ document.addEventListener('DOMContentLoaded', () => {
 '7501314704057': [{ farmacia: 'Farmacias San Pablo', precio: 471.00 }],  
             
  };
-    
+    const vendedorSelector = document.getElementById('vendedor-selector');
+    const btnGenerarReporte = document.getElementById('btn-generar-reporte');
     const menuClasificaciones = document.getElementById('menu-clasificaciones');
     const productList = document.getElementById('product-list');
     const globalSearch = document.getElementById('globalSearch');
@@ -3945,9 +3979,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const faltanteManualSugerencias = document.getElementById('faltante-manual-sugerencias');
     const btnRegistrarFaltanteManual = document.getElementById('btn-registrar-faltante-manual');
     const faltantesManualesList = document.getElementById('faltantes-manuales-list');
-    const tabManuales = document.getElementById('tab-manuales');
-    const tabInventario = document.getElementById('tab-inventario');
-    const faltantesInventarioList = document.getElementById('faltantes-inventario-list');
     const faltantesFiltros = document.getElementById('faltantes-filtros');
     const comprasSection = document.getElementById('compras-section');
     const btnCompras = document.getElementById('btn-compras');
@@ -3957,16 +3988,179 @@ document.addEventListener('DOMContentLoaded', () => {
     const comprasManualSugerencias = document.getElementById('compras-manual-sugerencias');
     const btnAgregarCompraManual = document.getElementById('btn-agregar-compra-manual');
     const comprasList = document.getElementById('compras-list');
-
-    // --- VARIABLES GLOBALES ---
+    let vendedorActual = "";
     let allProducts = [];
     let classifications = {};
-    let ventaActual = []; 
+    let ventaActual = [];
     let faltantesManualesCache = [];
     let comprasManualesCache = [];
-
     const sections = [inventarioSection, ventaSection, reportesSection, faltanteSection, comprasSection];
     const menuButtons = [btnInventario, btnVenta, btnReportes, btnFaltante, btnCompras];
+    vendedorSelector.addEventListener('change', (e) => {
+        vendedorActual = e.target.value;
+    });
+    btnRegistrarVenta.addEventListener('click', async () => {
+        if (ventaActual.length === 0) {
+            alert('No hay productos en la venta actual.');
+            return;
+        }
+        if (!vendedorActual) {
+            alert('Por favor, selecciona un vendedor antes de registrar la venta.');
+            return;
+        }
+        const fechaVenta = new Date();
+        const batch = db.batch();
+        ventaActual.forEach(item => {
+            const ventaRef = db.collection(`ventas_${pharmacyId}`).doc();
+            batch.set(ventaRef, {
+                codigo: item.codigo,
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                costoProveedor: item.costoProveedor,
+                fecha: fechaVenta,
+                vendedor: vendedorActual
+            });
+        });
+        try {
+            await batch.commit();
+            ventaActual.forEach(itemVendido => {
+                const productoGlobal = allProducts.find(p => p.codigo === itemVendido.codigo);
+                if (productoGlobal) {
+                    productoGlobal.unidades -= itemVendido.cantidad;
+                    if (productoGlobal.unidades < 0) productoGlobal.unidades = 0;
+                    inventarioUnidades[itemVendido.codigo] = productoGlobal.unidades;
+                }
+            });
+            alert('¡Venta registrada con éxito! El inventario ha sido actualizado.');
+            ventaActual = [];
+            renderVentaActual();
+            if (inventarioSection.style.display === 'flex') {
+                filterProducts(globalSearch.value);
+            }
+            if (ventaSection.style.display === 'flex') {
+                renderVentaSearchResults(allProducts.filter(p => p.nombre.toLowerCase().includes(ventaSearch.value.toLowerCase())));
+            }
+        } catch (error) {
+            console.error("Error al registrar la venta: ", error);
+            alert('Hubo un error al registrar la venta.');
+        }
+    });
+
+    function downloadCSV(csvContent, filename) {
+        const blob = new Blob([csvContent], {
+            type: 'text/csv;charset=utf-8;'
+        });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+    btnGenerarReporte.addEventListener('click', async () => {
+        btnGenerarReporte.textContent = 'Generando...';
+        btnGenerarReporte.disabled = true;
+        let fechaInicio = null;
+        let fechaFin = null;
+        const activeFilter = document.querySelector('#reportes-filtros button.active');
+        if (activeFilter && activeFilter.dataset.periodo) {
+            const periodo = activeFilter.dataset.periodo;
+            if (periodo !== 'siempre') {
+                fechaInicio = new Date();
+                fechaFin = new Date();
+                fechaFin.setHours(23, 59, 59, 999);
+                if (periodo === 'hoy') {
+                    fechaInicio.setHours(0, 0, 0, 0);
+                } else if (periodo === 'semana') {
+                    fechaInicio.setDate(fechaInicio.getDate() - 7);
+                    fechaInicio.setHours(0, 0, 0, 0);
+                } else if (periodo === 'mes') {
+                    fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+                    fechaInicio.setHours(0, 0, 0, 0);
+                }
+            }
+        } else {
+            const fechaInicioStr = document.getElementById('reporte-fecha-inicio').value;
+            const fechaFinStr = document.getElementById('reporte-fecha-fin').value;
+            if (fechaInicioStr && fechaFinStr) {
+                fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
+                fechaFin = new Date(fechaFinStr + 'T23:59:59');
+            }
+        }
+        try {
+            let query = db.collection(`ventas_${pharmacyId}`).orderBy('fecha', 'desc');
+            if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
+            if (fechaFin) query = query.where('fecha', '<=', fechaFin);
+            const snapshot = await query.get();
+            if (snapshot.empty) {
+                alert('No hay ventas en el período seleccionado para generar un reporte.');
+                btnGenerarReporte.textContent = 'Descargar Reporte de Ventas (CSV)';
+                btnGenerarReporte.disabled = false;
+                return;
+            }
+            let ventasDetalladas = [];
+            const resumenPorVendedor = {};
+            snapshot.forEach(doc => {
+                const venta = doc.data();
+                const producto = allProducts.find(p => p.codigo === venta.codigo) || {
+                    competencia: [],
+                    costoProveedor: venta.costoProveedor
+                };
+                let precioSugerido = 0;
+                if (producto.competencia && producto.competencia.length > 0) {
+                    const avgPrice = producto.competencia.reduce((a, b) => a + b.precio, 0) / producto.competencia.length;
+                    precioSugerido = avgPrice * 0.98;
+                }
+                const ventaTotalEstimada = precioSugerido * venta.cantidad;
+                const beneficioEstimado = (precioSugerido - venta.costoProveedor) * venta.cantidad;
+                const vendedor = venta.vendedor || 'No Registrado';
+                ventasDetalladas.push({
+                    fecha: venta.fecha.toDate().toLocaleString('es-MX'),
+                    vendedor: vendedor,
+                    producto: `"${venta.nombre.replace(/"/g, '""')}"`,
+                    cantidad: venta.cantidad,
+                    costoUnitario: venta.costoProveedor.toFixed(2),
+                    precioSugeridoUnitario: precioSugerido > 0 ? precioSugerido.toFixed(2) : 'N/D',
+                    ventaTotalEstimada: ventaTotalEstimada > 0 ? ventaTotalEstimada.toFixed(2) : 'N/D',
+                    beneficioEstimado: beneficioEstimado > 0 ? beneficioEstimado.toFixed(2) : 'N/D'
+                });
+                if (!resumenPorVendedor[vendedor]) {
+                    resumenPorVendedor[vendedor] = {
+                        totalArticulos: 0,
+                        totalVenta: 0,
+                        totalBeneficio: 0
+                    };
+                }
+                resumenPorVendedor[vendedor].totalArticulos += venta.cantidad;
+                resumenPorVendedor[vendedor].totalVenta += ventaTotalEstimada > 0 ? ventaTotalEstimada : 0;
+                resumenPorVendedor[vendedor].totalBeneficio += beneficioEstimado > 0 ? beneficioEstimado : 0;
+            });
+            let csv = 'Resumen de Ventas por Vendedor\n';
+            csv += 'Vendedor,Total Artículos,Venta Total Estimada,Beneficio Total Estimado\n';
+            for (const vendedor in resumenPorVendedor) {
+                const resumen = resumenPorVendedor[vendedor];
+                csv += `${vendedor},${resumen.totalArticulos},${resumen.totalVenta.toFixed(2)},${resumen.totalBeneficio.toFixed(2)}\n`;
+            }
+            csv += '\n\nDetalle de Ventas\n';
+            const headers = Object.keys(ventasDetalladas[0]);
+            csv += headers.join(',') + '\n';
+            ventasDetalladas.forEach(row => {
+                csv += headers.map(header => row[header]).join(',') + '\n';
+            });
+            const fechaHoy = new Date().toISOString().slice(0, 10);
+            downloadCSV(csv, `Reporte_Ventas_${pharmacyId.toUpperCase()}_${fechaHoy}.csv`);
+        } catch (error) {
+            console.error("Error al generar el reporte CSV: ", error);
+            alert("Hubo un error al generar el reporte.");
+        } finally {
+            btnGenerarReporte.textContent = 'Descargar Reporte de Ventas (CSV)';
+            btnGenerarReporte.disabled = false;
+        }
+    });
 
     function getStatusIndicatorHTML(unidades) {
         let color = 'green';
@@ -3983,7 +4177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonToActivate.classList.add('active');
     }
 
-    
     function setActiveLink(link) {
         document.querySelectorAll('#menu-clasificaciones a').forEach(a => a.classList.remove('active'));
         link.classList.add('active');
@@ -3995,8 +4188,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const nombreClasificacion = grupo.clasificacion;
             classifications[nombreClasificacion] = [];
             grupo.productos.forEach(prod => {
-                const productData = { 
-                    ...prod, 
+                const productData = {
+                    ...prod,
                     competencia: competitorPrices[prod.codigo.trim()] || [],
                     unidades: inventarioUnidades[prod.codigo] !== undefined ? inventarioUnidades[prod.codigo] : 0
                 };
@@ -4038,36 +4231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderMenu() {
-        menuClasificaciones.innerHTML = '';
-        const allLink = document.createElement('a');
-        allLink.href = '#';
-        allLink.textContent = 'Todos los Productos';
-        allLink.classList.add('active');
-        allLink.onclick = (e) => {
-            e.preventDefault();
-            setActiveLink(allLink);
-            currentClassificationTitle.textContent = 'Todos los Productos';
-            renderProducts(allProducts);
-        };
-        menuClasificaciones.appendChild(allLink);
-        Object.keys(classifications).sort().forEach(key => {
-            if (key !== 'Todos' && classifications[key].length > 0) {
-                const link = document.createElement('a');
-                link.href = '#';
-                link.textContent = key;
-                link.onclick = (e) => {
-                    e.preventDefault();
-                    setActiveLink(link);
-                    currentClassificationTitle.textContent = key;
-                    renderProducts(classifications[key]);
-                };
-                menuClasificaciones.appendChild(link);
-            }
-        });
-    }
-
-     function renderProducts(products) {
+    function renderProducts(products) {
         productList.innerHTML = '';
         if (products.length === 0) {
             productList.innerHTML = '<p>No se encontraron productos.</p>';
@@ -4112,10 +4276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const filtered = productsToSearch.filter(product => product.nombre.toLowerCase().includes(normalizedQuery) || product.codigo.includes(normalizedQuery));
         renderProducts(filtered);
     }
-    
     globalSearch.addEventListener('input', (e) => filterProducts(e.target.value));
-
-    // --- MÓDULO DE VENTA ---
     ventaSearch.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
         const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
@@ -4138,12 +4299,13 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(`"${product.nombre}" no tiene unidades disponibles en el inventario.`);
             return;
         }
-
         const existente = ventaActual.find(item => item.codigo === product.codigo);
         if (existente) {
             existente.cantidad++;
         } else {
-            ventaActual.push({ ...product, cantidad: 1 });
+            ventaActual.push({ ...product,
+                cantidad: 1
+            });
         }
         renderVentaActual();
     }
@@ -4161,19 +4323,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ventaActualList.appendChild(div);
         });
     }
-
     ventaActualList.addEventListener('change', (e) => {
         if (e.target.tagName === 'INPUT') {
             const index = e.target.dataset.index;
             let nuevaCantidad = parseInt(e.target.value, 10);
             const stockMaximo = ventaActual[index].unidades;
-
             if (nuevaCantidad > stockMaximo) {
                 alert(`Solo hay ${stockMaximo} unidades disponibles.`);
                 nuevaCantidad = stockMaximo;
                 e.target.value = stockMaximo;
             }
-
             if (nuevaCantidad > 0) {
                 ventaActual[index].cantidad = nuevaCantidad;
             } else {
@@ -4182,68 +4341,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderVentaActual();
         }
     });
-
-    btnRegistrarVenta.addEventListener('click', async () => {
-        if (ventaActual.length === 0) {
-            alert('No hay productos en la venta actual.');
-            return;
-        }
-
-        const fechaVenta = new Date();
-        const batch = db.batch();
-        ventaActual.forEach(item => {
-            const ventaRef = db.collection(`ventas_${pharmacyId}`).doc();
-            batch.set(ventaRef, {
-                codigo: item.codigo,
-                nombre: item.nombre,
-                cantidad: item.cantidad,
-                costoProveedor: item.costoProveedor,
-                fecha: fechaVenta
-            });
-        });
-
-        try {
-            await batch.commit();
-
-            // Descontar del inventario local
-            ventaActual.forEach(itemVendido => {
-                const productoGlobal = allProducts.find(p => p.codigo === itemVendido.codigo);
-                if (productoGlobal) {
-                    productoGlobal.unidades -= itemVendido.cantidad;
-                    if (productoGlobal.unidades < 0) productoGlobal.unidades = 0;
-                    
-                    // Actualizar también el objeto de unidades para persistencia en la sesión
-                    inventarioUnidades[itemVendido.codigo] = productoGlobal.unidades;
-                }
-            });
-            
-            alert('¡Venta registrada con éxito! El inventario ha sido actualizado.');
-            ventaActual = [];
-            renderVentaActual();
-
-            // Refrescar vistas por si algo cambió
-            if (inventarioSection.style.display === 'flex') {
-                filterProducts(globalSearch.value);
-            }
-            if(ventaSection.style.display === 'flex'){
-                renderVentaSearchResults(allProducts.filter(p => p.nombre.toLowerCase().includes(ventaSearch.value.toLowerCase())));
-            }
-
-
-        } catch (error) {
-            console.error("Error al registrar la venta: ", error);
-            alert('Hubo un error al registrar la venta.');
-        }
-    });
-
-    // --- MÓDULO DE REPORTES ---
     async function generarReporteMasVendidos(fechaInicio = null, fechaFin = null) {
         reportesList.innerHTML = '<p>Cargando reporte...</p>';
         try {
             let query = db.collection(`ventas_${pharmacyId}`).orderBy('fecha', 'desc');
             if (fechaInicio) query = query.where('fecha', '>=', fechaInicio);
             if (fechaFin) query = query.where('fecha', '<=', fechaFin);
-
             const ventasSnapshot = await query.get();
             const productosVendidos = {};
             ventasSnapshot.forEach(doc => {
@@ -4251,10 +4354,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (productosVendidos[venta.codigo]) {
                     productosVendidos[venta.codigo].cantidad += venta.cantidad;
                 } else {
-                    productosVendidos[venta.codigo] = { nombre: venta.nombre, cantidad: venta.cantidad };
+                    productosVendidos[venta.codigo] = {
+                        nombre: venta.nombre,
+                        cantidad: venta.cantidad
+                    };
                 }
             });
-
             const sorted = Object.values(productosVendidos).sort((a, b) => b.cantidad - a.cantidad);
             reportesList.innerHTML = '';
             if (sorted.length === 0) {
@@ -4272,16 +4377,15 @@ document.addEventListener('DOMContentLoaded', () => {
             reportesList.innerHTML = '<p>Error al cargar el reporte.</p>';
         }
     }
-    
     reportesFiltros.addEventListener('click', e => {
         if (e.target.tagName !== 'BUTTON' || e.target.id === 'btn-filtrar-periodo') return;
         document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
-        
+        document.getElementById('reporte-fecha-inicio').value = '';
+        document.getElementById('reporte-fecha-fin').value = '';
         const periodo = e.target.dataset.periodo;
         let fechaInicio = new Date();
         let fechaFin = null;
-
         if (periodo === 'hoy') {
             fechaInicio.setHours(0, 0, 0, 0);
             fechaFin = new Date();
@@ -4290,13 +4394,11 @@ document.addEventListener('DOMContentLoaded', () => {
             fechaInicio.setDate(fechaInicio.getDate() - 7);
         } else if (periodo === 'mes') {
             fechaInicio.setMonth(fechaInicio.getMonth() - 1);
-        } else { // 'siempre'
+        } else {
             fechaInicio = null;
         }
-        
         generarReporteMasVendidos(fechaInicio, fechaFin);
     });
-
     btnFiltrarPeriodo.addEventListener('click', () => {
         const fechaInicioStr = document.getElementById('reporte-fecha-inicio').value;
         const fechaFinStr = document.getElementById('reporte-fecha-fin').value;
@@ -4304,77 +4406,67 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Por favor selecciona ambas fechas.');
             return;
         }
+        document.querySelectorAll('#reportes-filtros button').forEach(btn => btn.classList.remove('active'));
         const fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
         const fechaFin = new Date(fechaFinStr + 'T23:59:59');
         generarReporteMasVendidos(fechaInicio, fechaFin);
     });
 
-// REEMPLAZA la función renderFaltantesConStockList completa por esta:
-
-function renderFaltantesConStockList(filtro = 'todos', searchQuery = '') {
-    const container = document.getElementById('faltantes-con-stock-list');
-    container.innerHTML = '';
-    
-    let productosFiltrados = [];
-    if (filtro === 'todos') {
-        productosFiltrados = allProducts.filter(p => p.unidades <= 4);
-    } else if (filtro === 'rojo') {
-        productosFiltrados = allProducts.filter(p => p.unidades === 0);
-    } else if (filtro === 'naranja') {
-        productosFiltrados = allProducts.filter(p => p.unidades >= 1 && p.unidades <= 2);
-    } else if (filtro === 'amarillo') {
-        productosFiltrados = allProducts.filter(p => p.unidades >= 3 && p.unidades <= 4);
+    function renderFaltantesConStockList(filtro = 'todos', searchQuery = '') {
+        const container = document.getElementById('faltantes-con-stock-list');
+        container.innerHTML = '';
+        let productosFiltrados = [];
+        if (filtro === 'todos') {
+            productosFiltrados = allProducts.filter(p => p.unidades <= 4);
+        } else if (filtro === 'rojo') {
+            productosFiltrados = allProducts.filter(p => p.unidades === 0);
+        } else if (filtro === 'naranja') {
+            productosFiltrados = allProducts.filter(p => p.unidades >= 1 && p.unidades <= 2);
+        } else if (filtro === 'amarillo') {
+            productosFiltrados = allProducts.filter(p => p.unidades >= 3 && p.unidades <= 4);
+        }
+        const normalizedQuery = searchQuery.toLowerCase().trim();
+        const productosBajos = productosFiltrados.filter(p => normalizedQuery === '' || p.nombre.toLowerCase().includes(normalizedQuery)).sort((a, b) => a.unidades - b.unidades);
+        if (productosBajos.length === 0) {
+            container.innerHTML = '<p>No se encontraron productos con los filtros actuales.</p>';
+            return;
+        }
+        productosBajos.forEach(product => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'list-item-card';
+            itemDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                    <div style="flex-grow: 1;">
+                        <h3>${getStatusIndicatorHTML(product.unidades)} ${product.nombre}</h3>
+                        <p>Disponibles: ${product.unidades} | Código: ${product.codigo}</p>
+                    </div>
+                    <button class="btn-agregar-compra-faltante" data-codigo="${product.codigo}" style="padding: 0.5rem 1rem; cursor: pointer;">Añadir a Compras</button>
+                </div>`;
+            container.appendChild(itemDiv);
+        });
     }
-
-    const normalizedQuery = searchQuery.toLowerCase().trim();
-    const productosBajos = productosFiltrados
-        .filter(p => normalizedQuery === '' || p.nombre.toLowerCase().includes(normalizedQuery))
-        .sort((a, b) => a.unidades - b.unidades);
-
-    if (productosBajos.length === 0) {
-        container.innerHTML = '<p>No se encontraron productos con los filtros actuales.</p>';
-        return;
-    }
-
-    productosBajos.forEach(product => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'list-item-card';
-        itemDiv.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                <div style="flex-grow: 1;">
-                    <h3>${getStatusIndicatorHTML(product.unidades)} ${product.nombre}</h3>
-                    <p>Disponibles: ${product.unidades} | Código: ${product.codigo}</p>
-                </div>
-                <button class="btn-agregar-compra-faltante" data-codigo="${product.codigo}" style="padding: 0.5rem 1rem; cursor: pointer;">Añadir a Compras</button>
-            </div>`;
-        container.appendChild(itemDiv);
+    document.getElementById('faltantes-stock-filtros').addEventListener('click', e => {
+        const filtroTarget = e.target.closest('[data-filtro]');
+        if (filtroTarget) {
+            document.querySelectorAll('.filtro-stock').forEach(el => el.classList.remove('active'));
+            filtroTarget.classList.add('active');
+            const filtro = filtroTarget.dataset.filtro;
+            const searchQuery = document.getElementById('faltantesStockSearch').value;
+            renderFaltantesConStockList(filtro, searchQuery);
+        }
     });
-}
-    
-document.getElementById('faltantes-stock-filtros').addEventListener('click', e => {
-    const filtroTarget = e.target.closest('[data-filtro]');
-    if (filtroTarget) {
-        document.querySelectorAll('.filtro-stock').forEach(el => el.classList.remove('active'));
-        filtroTarget.classList.add('active');
-        const filtro = filtroTarget.dataset.filtro;
-        const searchQuery = document.getElementById('faltantesStockSearch').value;
-        renderFaltantesConStockList(filtro, searchQuery);
-    }
-});
-
-document.getElementById('faltantesStockSearch').addEventListener('input', (e) => {
-    const searchQuery = e.target.value;
-    const activeFiltro = document.querySelector('#faltantes-stock-filtros .filtro-stock.active').dataset.filtro;
-    renderFaltantesConStockList(activeFiltro, searchQuery);
-});
-
+    document.getElementById('faltantesStockSearch').addEventListener('input', (e) => {
+        const searchQuery = e.target.value;
+        const activeFiltro = document.querySelector('#faltantes-stock-filtros .filtro-stock.active').dataset.filtro;
+        renderFaltantesConStockList(activeFiltro, searchQuery);
+    });
     document.getElementById('faltantes-con-stock-list').addEventListener('click', async e => {
         if (e.target.classList.contains('btn-agregar-compra-faltante')) {
             const codigo = e.target.dataset.codigo;
             const product = allProducts.find(p => p.codigo === codigo);
             if (product) {
                 const agregado = await agregarACompras(product);
-                if(agregado){
+                if (agregado) {
                     e.target.textContent = 'Agregado';
                     e.target.disabled = true;
                     e.target.style.backgroundColor = '#ccc';
@@ -4382,7 +4474,6 @@ document.getElementById('faltantesStockSearch').addEventListener('input', (e) =>
             }
         }
     });
-
     faltanteManualInput.addEventListener('input', e => {
         const query = e.target.value.toLowerCase();
         faltanteManualSugerencias.innerHTML = '';
@@ -4401,20 +4492,28 @@ document.getElementById('faltantesStockSearch').addEventListener('input', (e) =>
             faltanteManualSugerencias.appendChild(div);
         });
     });
-
     async function registrarFaltante(docId, nombre, esDeInventario) {
         const registroRef = db.collection(`solicitudes_faltantes_${pharmacyId}`).doc();
-            const faltanteRef = db.collection(`faltantes_${pharmacyId}`).doc(docId);
-            try {
+        const faltanteRef = db.collection(`faltantes_${pharmacyId}`).doc(docId);
+        try {
             await db.runTransaction(async (transaction) => {
                 const doc = await transaction.get(faltanteRef);
-                transaction.set(registroRef, { nombre, esDeInventario, fecha: new Date() });
-                
+                transaction.set(registroRef, {
+                    nombre,
+                    esDeInventario,
+                    fecha: new Date()
+                });
                 if (!doc.exists) {
-                    transaction.set(faltanteRef, { nombre, esDeInventario, contador: 1 });
+                    transaction.set(faltanteRef, {
+                        nombre,
+                        esDeInventario,
+                        contador: 1
+                    });
                 } else {
                     const nuevoContador = doc.data().contador + 1;
-                    transaction.update(faltanteRef, { contador: nuevoContador });
+                    transaction.update(faltanteRef, {
+                        contador: nuevoContador
+                    });
                 }
             });
             alert(`Registro de faltante para "${nombre}" guardado.`);
@@ -4425,75 +4524,67 @@ document.getElementById('faltantesStockSearch').addEventListener('input', (e) =>
             return false;
         }
     }
-
-    btnRegistrarFaltanteManual.addEventListener('click', async () => { 
-        const nombreManual = faltanteManualInput.value.trim(); 
-        if (nombreManual === '') return; 
-        const docId = nombreManual.toLowerCase().replace(/\s+/g, '-'); 
-        if (await registrarFaltante(docId, nombreManual, false)) { 
-            faltanteManualInput.value = ''; 
-            faltanteManualSugerencias.innerHTML = ''; 
-            cargarYGenerarReporteFaltantes(); 
-        } 
+    btnRegistrarFaltanteManual.addEventListener('click', async () => {
+        const nombreManual = faltanteManualInput.value.trim();
+        if (nombreManual === '') return;
+        const docId = nombreManual.toLowerCase().replace(/\s+/g, '-');
+        if (await registrarFaltante(docId, nombreManual, false)) {
+            faltanteManualInput.value = '';
+            faltanteManualSugerencias.innerHTML = '';
+            cargarYGenerarReporteFaltantes();
+        }
     });
-
-async function generarReporteFaltantes(fechaInicio = null) { 
-    faltantesManualesList.innerHTML = '<p>Cargando...</p>'; 
-    
-    let query = db.collection(`solicitudes_faltantes_${pharmacyId}`)
-                  .where('esDeInventario', '==', false); // <-- Filtra para mostrar solo manuales
-                                                     
-    if (fechaInicio) { 
-        query = query.where('fecha', '>=', fechaInicio); 
-    } 
-    
-    const snapshot = await query.get(); 
-    const conteo = {}; 
-    
-    snapshot.forEach(doc => { 
-        const data = doc.data(); 
-        const id = data.nombre.toLowerCase(); 
-        if (!conteo[id]) { 
-            conteo[id] = { nombre: data.nombre, cantidad: 0 }; 
-        } 
-        conteo[id].cantidad++; 
-    }); 
-    
-    const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad); 
-    faltantesManualesList.innerHTML = ''; 
-    
-    if (sorted.length === 0) {
-        faltantesManualesList.innerHTML = '<p>No hay faltantes manuales registrados para este periodo.</p>';
-        return;
+    async function generarReporteFaltantes(fechaInicio = null) {
+        faltantesManualesList.innerHTML = '<p>Cargando...</p>';
+        let query = db.collection(`solicitudes_faltantes_${pharmacyId}`).where('esDeInventario', '==', false);
+        if (fechaInicio) {
+            query = query.where('fecha', '>=', fechaInicio);
+        }
+        const snapshot = await query.get();
+        const conteo = {};
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const id = data.nombre.toLowerCase();
+            if (!conteo[id]) {
+                conteo[id] = {
+                    nombre: data.nombre,
+                    cantidad: 0
+                };
+            }
+            conteo[id].cantidad++;
+        });
+        const sorted = Object.values(conteo).sort((a, b) => b.cantidad - a.cantidad);
+        faltantesManualesList.innerHTML = '';
+        if (sorted.length === 0) {
+            faltantesManualesList.innerHTML = '<p>No hay faltantes manuales registrados para este periodo.</p>';
+            return;
+        }
+        sorted.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`;
+            faltantesManualesList.appendChild(div);
+        });
     }
-
-    sorted.forEach(item => { 
-        const div = document.createElement('div'); 
-        div.className = 'item'; 
-        div.innerHTML = `<span>${item.nombre}</span> <strong>(${item.cantidad} veces)</strong>`; 
-        faltantesManualesList.appendChild(div);
-    }); 
-}
-
-    async function cargarYGenerarReporteFaltantes() { 
-        const snapshot = await db.collection(`faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get(); 
-        faltantesManualesCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); 
-        generarReporteFaltantes(); 
+    async function cargarYGenerarReporteFaltantes() {
+        const snapshot = await db.collection(`faltantes_${pharmacyId}`).where('esDeInventario', '==', false).get();
+        faltantesManualesCache = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        generarReporteFaltantes();
     }
-
-    faltantesFiltros.addEventListener('click', e => { 
-        if (e.target.tagName !== 'BUTTON') return; 
-        document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active')); 
-        e.target.classList.add('active'); 
-        const periodo = e.target.dataset.periodo; 
-        let fechaInicio = new Date(); 
-        if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7); 
-        else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1); 
-        else fechaInicio = null; 
-        generarReporteFaltantes(fechaInicio); 
+    faltantesFiltros.addEventListener('click', e => {
+        if (e.target.tagName !== 'BUTTON') return;
+        document.querySelectorAll('#faltantes-filtros button').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        const periodo = e.target.dataset.periodo;
+        let fechaInicio = new Date();
+        if (periodo === 'semana') fechaInicio.setDate(fechaInicio.getDate() - 7);
+        else if (periodo === 'mes') fechaInicio.setMonth(fechaInicio.getMonth() - 1);
+        else fechaInicio = null;
+        generarReporteFaltantes(fechaInicio);
     });
-    
-    // --- MÓDULO LISTA DE COMPRAS ---
     async function cargarListaDeCompras() {
         const inventarioContainer = document.getElementById('compras-list-inventario');
         const manualContainer = document.getElementById('compras-list-manual');
@@ -4501,13 +4592,10 @@ async function generarReporteFaltantes(fechaInicio = null) {
         manualContainer.innerHTML = '';
         try {
             const snapshot = await db.collection(`lista_compras_${pharmacyId}`).orderBy('fechaAgregado', 'desc').get();
-        
             inventarioContainer.innerHTML = '';
             manualContainer.innerHTML = '';
-            
             let hasInventario = false;
             let hasManual = false;
-
             snapshot.forEach(doc => {
                 const item = doc.data();
                 const div = document.createElement('div');
@@ -4515,7 +4603,6 @@ async function generarReporteFaltantes(fechaInicio = null) {
                 div.style.display = 'flex';
                 div.style.justifyContent = 'space-between';
                 div.style.alignItems = 'center';
-
                 if (item.esManual) {
                     div.innerHTML = `<span>${item.nombre}</span> <button class="btn-remover-compra" data-id="${doc.id}" style="background:red; color:white; border:none; cursor:pointer; padding: 4px 8px;">Quitar</button>`;
                     manualContainer.appendChild(div);
@@ -4531,24 +4618,20 @@ async function generarReporteFaltantes(fechaInicio = null) {
                     hasInventario = true;
                 }
             });
-
             if (!hasInventario) inventarioContainer.innerHTML = '<p>No hay productos del inventario en la lista.</p>';
             if (!hasManual) manualContainer.innerHTML = '<p>No hay productos manuales en la lista.</p>';
-
-            comprasManualesCache = snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(item => item.esManual);
-
+            comprasManualesCache = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })).filter(item => item.esManual);
         } catch (error) {
             console.error("Error al cargar la lista de compras:", error);
             inventarioContainer.innerHTML = '<p>No se pudo cargar la lista.</p>';
         }
     }
-
     comprasSearchInventario.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
         const filtered = allProducts.filter(p => p.nombre.toLowerCase().includes(query) || p.codigo.includes(query));
-        
         comprasSearchResults.innerHTML = '';
         filtered.slice(0, 50).forEach(product => {
             const card = document.createElement('div');
@@ -4559,7 +4642,6 @@ async function generarReporteFaltantes(fechaInicio = null) {
             comprasSearchResults.appendChild(card);
         });
     });
-
     async function agregarACompras(itemData, esManual = false) {
         const docId = esManual ? itemData.nombre.toLowerCase().replace(/\s+/g, '-') : itemData.codigo;
         const itemRef = db.collection(`lista_compras_${pharmacyId}`).doc(docId);
@@ -4575,7 +4657,7 @@ async function generarReporteFaltantes(fechaInicio = null) {
                 esManual: esManual,
                 fechaAgregado: new Date()
             });
-            if(esManual) comprasManualInput.value = '';
+            if (esManual) comprasManualInput.value = '';
             comprasSearchInventario.value = '';
             comprasSearchResults.innerHTML = '';
             cargarListaDeCompras();
@@ -4586,14 +4668,14 @@ async function generarReporteFaltantes(fechaInicio = null) {
             return false;
         }
     }
-
     btnAgregarCompraManual.addEventListener('click', () => {
         const nombre = comprasManualInput.value.trim();
         if (nombre) {
-            agregarACompras({ nombre: nombre }, true);
+            agregarACompras({
+                nombre: nombre
+            }, true);
         }
     });
-
     comprasManualInput.addEventListener('input', e => {
         const query = e.target.value.toLowerCase();
         comprasManualSugerencias.innerHTML = '';
@@ -4612,7 +4694,6 @@ async function generarReporteFaltantes(fechaInicio = null) {
             comprasManualSugerencias.appendChild(div);
         });
     });
-
     comprasList.addEventListener('click', async (e) => {
         if (e.target.classList.contains('btn-remover-compra')) {
             const docId = e.target.dataset.id;
@@ -4625,43 +4706,31 @@ async function generarReporteFaltantes(fechaInicio = null) {
                     alert("No se pudo quitar el producto.");
                 }
             }
-        }    
+        }
     });
-
     btnInventario.addEventListener('click', () => showSection(inventarioSection, btnInventario));
-    btnVenta.addEventListener('click', () => { showSection(ventaSection, btnVenta); renderVentaSearchResults(allProducts); });
-    btnReportes.addEventListener('click', () => { showSection(reportesSection, btnReportes); generarReporteMasVendidos(); });
-    btnFaltante.addEventListener('click', () => { 
-    showSection(faltanteSection, btnFaltante); 
-    renderFaltantesConStockList(); 
-    cargarYGenerarReporteFaltantes(); 
-});
+    btnVenta.addEventListener('click', () => {
+        showSection(ventaSection, btnVenta);
+        renderVentaSearchResults(allProducts);
+    });
+    btnReportes.addEventListener('click', () => {
+        showSection(reportesSection, btnReportes);
+        generarReporteMasVendidos();
+    });
+    btnFaltante.addEventListener('click', () => {
+        showSection(faltanteSection, btnFaltante);
+        renderFaltantesConStockList();
+        cargarYGenerarReporteFaltantes();
+    });
     btnCompras.addEventListener('click', () => {
         showSection(comprasSection, btnCompras);
         cargarListaDeCompras();
     });
     loadData();
 });
-</script>   
+</script>    
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
